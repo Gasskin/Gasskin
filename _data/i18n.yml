@@ -43,7 +43,7 @@ zh: &zh
   back_to_top: '返回顶部'
   categories: '文章分类'
   close: '关闭'
-  enter_blog: '进入博客'
+  enter_blog: 'ENTER'
   last_updated: '最后更新于'
   menu: '菜单'
   more: '更多'
@@ -65,7 +65,7 @@ zh: &zh
   show_comments: '显示评论'
   show_license: '显示许可证'
   tags: '文章标签'
-  theme_info: '<p><small>本博客主题 <a href="https://github.com/yizeng/jekyll-theme-simple-texture" target="_blank">Simple Texture</a> 由 <a href="https://yizeng.me" target="_blank">Yi Zeng</a> 基于 <a href="https://jekyllrb.com/" target="_blank">Jekyll</a> 开发.</small></p>'
+  theme_info: ''
   view: '查阅'
 zh-cn:
   <<: *zh

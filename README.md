@@ -1,4 +1,4 @@
-[个人博客](www.logarius.icu)
+[个人博客](https://www.logarius.icu/)
 
 <!--
 **Gasskin/Gasskin** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.

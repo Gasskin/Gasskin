@@ -13,7 +13,7 @@ tags: [Unity,框架]
 
 流程基类，本质就是一个状态
 
-```c
+```c#
 /// <summary>
 /// 流程基类
 /// </summary>
@@ -37,7 +37,7 @@ public class ProcedureBase : FsmState<ProcedureManager>
 
 ### ProcedureManager
 
-```c
+```c#
 /// <summary>
 /// 流程管理器
 /// </summary>
@@ -112,7 +112,7 @@ public class ProcedureManager : ManagerBase
 
 流程相关
 
-```c
+```c#
 public class ProcedureManager : ManagerBase
 {
    		/// <summary>
@@ -158,7 +158,7 @@ public class ProcedureManager : ManagerBase
 
 到此为止流程管理器就算是完成了，让我们来测试一下吧~
 
-```c
+```c#
 // 用这个流程模拟资源加载，3秒后正式进入游戏流程
 public class Procedure_Loading : ProcedureBase
 {
@@ -201,7 +201,7 @@ public class Procedure_Pause : ProcedureBase
 }
 ```
 
-```c
+```c#
 public class test : MonoBehaviour
 {
     void Start()

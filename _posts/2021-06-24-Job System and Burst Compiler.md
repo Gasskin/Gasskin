@@ -270,45 +270,226 @@ private void LateUpdate()
 
 直接超神！
 
+### IJobParallelForTransform
 
+上面我们还提到过一种特殊的Job，专门针对于Transform类型，因为Transform类型是引用类型，所以必须通过特定的方法实现Job化
 
+打开脚本FishGenerator.cs，这个脚本会生成大量自由移动的小鱼
 
+**首先添加两个属性**
 
+```c#
+// 1
+private NativeArray<Vector3> velocities;
 
+// 2
+private TransformAccessArray transformAccessArray;
+```
 
+1. 移动速度，和上面提到的容器是一样的，只不过储存的是Vector3类型
+2. 专门针对于Transform的特殊容器，只能输出Transform类型的数据，且是一个数组
 
+**在Start()中初始化**
 
+```csharp
+private void Start()
+{
+    // 1
+    velocities = new NativeArray<Vector3>(amountOfFish, Allocator.Persistent);
 
+    // 2
+    transformAccessArray = new TransformAccessArray(amountOfFish);
 
+    for (int i = 0; i < amountOfFish; i++)
+    {
 
+        float distanceX = 
+            Random.Range(-spawnBounds.x / 2, spawnBounds.x / 2);
 
+        float distanceZ = 
+            Random.Range(-spawnBounds.z / 2, spawnBounds.z / 2);
 
+        // 3
+        Vector3 spawnPoint = 
+            (transform.position + Vector3.up * spawnHeight) + new Vector3(distanceX, 0, distanceZ);
 
+        // 4
+        Transform t = 
+            (Transform)Instantiate(objectPrefab, spawnPoint, 
+                Quaternion.identity);
 
+        // 5
+        transformAccessArray.Add(t);
+    }
 
+}
+```
 
+1. 和上面没啥区别，就是初始化容器，第一个参数是鱼的数量，第二个参数是分配方式
+2. 也是初始化容器，不过初始化Transform容器和其他容器稍微有一点区别，只要写好大小就行
 
+   3.4. 生成随机数罢了，和Job无关，目的是随机生成鱼的位置，随便看看就行
 
+5. 把生成的随机位置添加到容器中
 
+**同样需要在OnDestroy()时销毁容器**
 
+```csharp
+private void OnDestroy()
+{
+        transformAccessArray.Dispose();
+        velocities.Dispose();
+}
+```
 
+然后填写好参数，测试一下
 
+![1](https://www.logarius.icu/images/UnityStudy/JobSystem/10.png)
 
+会发现随机生成了很多小鱼，但是是静止的
 
+![1](https://www.logarius.icu/images/UnityStudy/JobSystem/11.png)
 
+**创建小鱼移动Job**
 
+```c#
+[BurstCompile]
+struct PositionUpdateJob : IJobParallelForTransform
+{
+    public NativeArray<Vector3> objectVelocities;
 
+    public Vector3 bounds;
+    public Vector3 center;
 
+    public float jobDeltaTime;
+    public float time;
+    public float swimSpeed;
+    public float turnSpeed;
+    public int swimChangeFrequency;
 
+    public float seed;
 
+    public void Execute (int i, TransformAccess transform)
+    {
+        // 1
+        Vector3 currentVelocity = objectVelocities[i];
 
+        // 2            
+        random randomGen = new random((uint)(i * time + 1 + seed));
 
+        // 3
+        transform.position += 
+            transform.localToWorldMatrix.MultiplyVector(new Vector3(0, 0, 1)) * 
+            swimSpeed * 
+            jobDeltaTime * 
+            randomGen.NextFloat(0.3f, 1.0f);
 
+        // 4
+        if (currentVelocity != Vector3.zero)
+        {
+            transform.rotation = 
+                Quaternion.Lerp(transform.rotation, 
+                    Quaternion.LookRotation(currentVelocity), turnSpeed * jobDeltaTime);
+        }
+        
+        Vector3 currentPosition = transform.position;
 
+        bool randomise = true;
 
+        // 5
+        if (currentPosition.x > center.x + bounds.x / 2 || 
+            currentPosition.x < center.x - bounds.x/2 || 
+            currentPosition.z > center.z + bounds.z / 2 || 
+            currentPosition.z < center.z - bounds.z / 2)
+        {
+            Vector3 internalPosition = new Vector3(center.x + 
+                                                   randomGen.NextFloat(-bounds.x / 2, bounds.x / 2)/1.3f, 
+                0, 
+                center.z + randomGen.NextFloat(-bounds.z / 2, bounds.z / 2)/1.3f);
 
+            currentVelocity = (internalPosition- currentPosition).normalized;
 
+            objectVelocities[i] = currentVelocity;
 
+            transform.rotation = Quaternion.Lerp(transform.rotation, 
+                Quaternion.LookRotation(currentVelocity), 
+                turnSpeed * jobDeltaTime * 2);
+
+            randomise = false;
+        }
+
+        // 6
+        if (randomise)
+        {
+            if (randomGen.NextInt(0, swimChangeFrequency) <= 2)
+            {
+                objectVelocities[i] = new Vector3(randomGen.NextFloat(-1f, 1f), 
+                    0, randomGen.NextFloat(-1f, 1f));
+            }
+        }
+
+    }
+}
+```
+
+这个Job和上面那个波浪Job很像，区别是实现自接口IJobParallelForTransform，只有这个接口可以访问Transform容器，同样也有一个Execute方法需要实现，其中i代表容器内的序号，transform则是引用
+
+具体算法其实并不重要，主要目的就是让小鱼的Transform线性变化，如果不使用Job而在Update中写，相信很多人随便就能写了
+
+1. 第i条小鱼当前的速度
+2. 随机种子，需要using random = Unity.Mathematics.Random;
+3. 随机移动距离，会根据上面几个指定的参数决定
+4. 旋转
+5. 6. 防止小鱼移出水面的范围
+
+**执行任务**
+
+同样需要先创建一个句柄以及任务
+
+```csharp
+private PositionUpdateJob positionUpdateJob;
+
+private JobHandle positionUpdateJobHandle;
+```
+
+在Update()中初始化并执行
+
+```csharp
+private void Update()
+{
+    // 1
+    positionUpdateJob = new PositionUpdateJob()
+    {
+        objectVelocities = velocities,
+        jobDeltaTime = Time.deltaTime,
+        swimSpeed = this.swimSpeed,
+        turnSpeed = this.turnSpeed,
+        time = Time.time,
+        swimChangeFrequency = this.swimChangeFrequency,
+        center = waterObject.position,
+        bounds = spawnBounds,
+        seed = System.DateTimeOffset.Now.Millisecond
+    };
+
+    // 2
+    positionUpdateJobHandle = positionUpdateJob.Schedule(transformAccessArray);
+
+}
+```
+
+1. 初始化任务，注意我们没并有传入一个Transform数组
+2. 执行任务，此时可以传入咱们的transformAccessArray
+
+同样在LateUpdate()中等待任务结束
+
+```csharp
+private void LateUpdate()
+{
+    positionUpdateJobHandle.Complete(); 
+}
+```
+
+点击运行，小鱼就动了起来！
 
 
 

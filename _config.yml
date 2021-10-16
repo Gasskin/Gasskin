@@ -1,4 +1,4 @@
-# Site Settings
+﻿# Site Settings
 encoding: UTF-8
 exclude: ["*.gem", "*.gemspec", "Gemfile", "Gemfile.lock", "node_modules", "Rakefile", "starter-kit", "vendor"]
 lang: zh-cn # Language code as defined in _data/i18n.yml. en, en-gb, en-us, zh, zh-cn, zh-tw etc.
@@ -55,3 +55,5 @@ paths:
   blog: /blog/
   categories: /blog/categories/
   tags: /blog/tags/
+
+markdown: kramdown

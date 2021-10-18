@@ -10,7 +10,7 @@ tags: [Unity,学习记录]
 通过UnityWebRequest来读取，以某一个XML文件为例
 
 ```c#
-var             path    = Path.Combine (Application.streamingAssetsPath, "xxx");
+var             path    = Path.Combine (Application.streamingAssetsPath, "xxx");// 使用Combine时，路径前不能带有'/'，直接以文件夹开头
 UnityWebRequest request = UnityWebRequest.Get (path);
 request.SendWebRequest ();
 while (!request.downloadHandler.isDone) { } // 这里可以用携程，现在是同步加载

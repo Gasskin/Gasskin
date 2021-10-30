@@ -17,7 +17,7 @@ title: MatJek
 description: > # this means to ignore newlines until "baseurl:"
   Material theme based on <a href="http://materializecss.com">Materialize.css</a> for jekyll sites
 baseurl: ""
-url: "https://gasskin.github.io/Gasskin/"
+url: "https://gasskin.github.io/Gasskin"
 permalink: /:year/:month/:day/:title
 repository: Gasskin/Gasskin
 paginate: 5

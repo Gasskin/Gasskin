@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "透明效果"
+title: "05 透明效果"
 categories: [UnityShader]
 tags: [Unity,图形学] 
 ---

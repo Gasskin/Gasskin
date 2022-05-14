@@ -1,0 +1,87 @@
+{
+  "main": {
+    "id": "8551f19a17190872",
+    "type": "split",
+    "children": [
+      {
+        "id": "b1aa274027ff52dc",
+        "type": "leaf",
+        "dimension": 45.098814229249015,
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "2022-5-12-Unity3D网络游戏实战1.md",
+            "mode": "preview"
+          }
+        }
+      },
+      {
+        "id": "9fe45a11be24755d",
+        "type": "leaf",
+        "dimension": 54.90118577075099,
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "2022-5-12-Unity3D网络游戏实战1.md",
+            "mode": "source"
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "c1c347fcb872dbc6",
+    "type": "split",
+    "children": [
+      {
+        "id": "1c8f13acddd332b8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c34e0b2be9264d8b",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "c54827580e7810d3",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "8a23d74f810f309c",
+    "type": "split",
+    "children": [],
+    "direction": "horizontal",
+    "width": 194.5,
+    "collapsed": true
+  },
+  "active": "9fe45a11be24755d",
+  "lastOpenFiles": [
+    "2022-5-12-Unity3D网络游戏实战1.md",
+    "2022-4-24-深入解析C#5 .md",
+    "2022-3-2-Unity学习记录10.md",
+    "2022-4-13-深入解析C#1.md",
+    "2021-04-15-软光栅05.md"
+  ]
+}

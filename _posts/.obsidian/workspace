@@ -4,25 +4,25 @@
     "type": "split",
     "children": [
       {
-        "id": "b1aa274027ff52dc",
+        "id": "9fe45a11be24755d",
         "type": "leaf",
-        "dimension": 45.09881422924902,
+        "dimension": 50,
         "state": {
           "type": "markdown",
           "state": {
-            "file": "2022-5-12-Unity3D网络游戏实战1.md",
+            "file": "2022-5-12-Unity3D网络游戏实战2.md",
             "mode": "preview"
           }
         }
       },
       {
-        "id": "9fe45a11be24755d",
+        "id": "b221e08089d50b1e",
         "type": "leaf",
-        "dimension": 54.90118577075099,
+        "dimension": 50,
         "state": {
           "type": "markdown",
           "state": {
-            "file": "2022-5-12-Unity3D网络游戏实战1.md",
+            "file": "2022-5-12-Unity3D网络游戏实战2.md",
             "mode": "source"
           }
         }
@@ -65,8 +65,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "8a23d74f810f309c",
@@ -82,7 +81,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "2022-5-12-Unity3D网络游戏实战1.md",
+                "file": "2022-5-12-Unity3D网络游戏实战2.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -100,8 +99,9 @@
     "width": 194.5,
     "collapsed": true
   },
-  "active": "9fe45a11be24755d",
+  "active": "b221e08089d50b1e",
   "lastOpenFiles": [
+    "2022-5-12-Unity3D网络游戏实战2.md",
     "2022-5-12-Unity3D网络游戏实战1.md",
     "2022-4-24-深入解析C#5 .md",
     "2022-3-2-Unity学习记录10.md",

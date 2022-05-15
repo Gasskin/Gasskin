@@ -6,7 +6,7 @@
       {
         "id": "9fe45a11be24755d",
         "type": "leaf",
-        "dimension": 50,
+        "dimension": 47.15857011915674,
         "state": {
           "type": "markdown",
           "state": {
@@ -18,7 +18,7 @@
       {
         "id": "b221e08089d50b1e",
         "type": "leaf",
-        "dimension": 50,
+        "dimension": 52.84142988084326,
         "state": {
           "type": "markdown",
           "state": {
@@ -65,7 +65,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "8a23d74f810f309c",
@@ -91,13 +92,23 @@
                 "unlinkedCollapsed": true
               }
             }
+          },
+          {
+            "id": "c93cb0da495cb5ae",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "2022-5-12-Unity3D网络游戏实战2.md"
+              }
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
-    "width": 194.5,
-    "collapsed": true
+    "width": 318.5
   },
   "active": "b221e08089d50b1e",
   "lastOpenFiles": [

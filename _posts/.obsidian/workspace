@@ -4,25 +4,23 @@
     "type": "split",
     "children": [
       {
-        "id": "9fe45a11be24755d",
+        "id": "6c57c3e825adb604",
         "type": "leaf",
-        "dimension": 47.15857011915674,
         "state": {
           "type": "markdown",
           "state": {
-            "file": "2022-5-12-Unity3D网络游戏实战2.md",
+            "file": "2022-6-17-UnityShader05.md",
             "mode": "preview"
           }
         }
       },
       {
-        "id": "b221e08089d50b1e",
+        "id": "661b43118d7521ee",
         "type": "leaf",
-        "dimension": 52.84142988084326,
         "state": {
           "type": "markdown",
           "state": {
-            "file": "2022-5-12-Unity3D网络游戏实战2.md",
+            "file": "2022-6-17-UnityShader05.md",
             "mode": "source"
           }
         }
@@ -65,8 +63,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "8a23d74f810f309c",
@@ -82,7 +79,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "2022-5-12-Unity3D网络游戏实战2.md",
+                "file": "2022-6-17-UnityShader05.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -99,7 +96,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "2022-5-12-Unity3D网络游戏实战2.md"
+                "file": "2022-6-17-UnityShader05.md"
               }
             }
           }
@@ -110,13 +107,17 @@
     "direction": "horizontal",
     "width": 318.5
   },
-  "active": "b221e08089d50b1e",
+  "active": "661b43118d7521ee",
   "lastOpenFiles": [
+    "2022-6-17-UnityShader05.md",
     "2022-5-12-Unity3D网络游戏实战2.md",
     "2022-5-12-Unity3D网络游戏实战1.md",
+    "2022-4-26-ECS学习2.md",
     "2022-4-24-深入解析C#5 .md",
-    "2022-3-2-Unity学习记录10.md",
-    "2022-4-13-深入解析C#1.md",
-    "2021-04-15-软光栅05.md"
+    "2022-4-25-ECS学习1.md",
+    "2021-10-16-UnityShader03.md",
+    "2021-10-17-UnityShader04.md",
+    "2021-10-09-UnityShder02.md",
+    "2021-10-09-UnityShader01.md"
   ]
 }

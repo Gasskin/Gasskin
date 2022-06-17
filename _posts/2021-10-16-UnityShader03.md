@@ -89,7 +89,7 @@ $m_{specular}$：高光强度
 
 ### 一个基础光照
 
-```c#
+```hlsl
 Shader "Custom/BaseLit"
 {
     Properties

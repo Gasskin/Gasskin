@@ -6,23 +6,21 @@
       {
         "id": "661b43118d7521ee",
         "type": "leaf",
-        "dimension": 43.76190476190477,
         "state": {
           "type": "markdown",
           "state": {
-            "file": "2022-6-18-huatuo 01.md",
+            "file": "2022-6-18-huatuo 02.md",
             "mode": "preview"
           }
         }
       },
       {
-        "id": "fc706725f0a6dc08",
+        "id": "dd3e33a326c17f8d",
         "type": "leaf",
-        "dimension": 56.23809523809524,
         "state": {
           "type": "markdown",
           "state": {
-            "file": "2022-6-18-huatuo 01.md",
+            "file": "2022-6-18-huatuo 02.md",
             "mode": "source"
           }
         }
@@ -81,7 +79,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "2022-6-18-huatuo 01.md",
+                "file": "2022-6-18-huatuo 02.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -98,7 +96,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "2022-6-18-huatuo 01.md"
+                "file": "2022-6-18-huatuo 02.md"
               }
             }
           }
@@ -109,8 +107,9 @@
     "direction": "horizontal",
     "width": 100
   },
-  "active": "661b43118d7521ee",
+  "active": "dd3e33a326c17f8d",
   "lastOpenFiles": [
+    "2022-6-18-huatuo 02.md",
     "2022-6-18-huatuo 01.md",
     "2022-2-13-ILRuntime05.md",
     "2021-12-18-ILRuntime04.md",
@@ -119,7 +118,6 @@
     "2021-11-11-ILRuntime01.md",
     "2022-5-12-Unity3D网络游戏实战2.md",
     "2022-5-12-Unity3D网络游戏实战1.md",
-    "2021-04-28-框架学习14.md",
-    "2022-6-17-UnityShader05.md"
+    "2021-04-28-框架学习14.md"
   ]
 }

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Android访问StreamAsset"
-categories: [Unity学习记录]
+categories: [Android]
 tags: [Unity,学习记录]
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "ScrollView的优化插件EnhancedScroller"
-categories: [Unity学习记录]
+categories: [UI]
 tags: [Unity,学习记录]  
 ---
 

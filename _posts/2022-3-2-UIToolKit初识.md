@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "UIToolKit初识"
-categories: [Unity学习记录]
+categories: [UI]
 tags: [Unity,学习记录]  
 ---
 

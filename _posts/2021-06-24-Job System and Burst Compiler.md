@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Job System and Burst Compiler"
-categories: [原理]
+categories: [杂项知识点]
 tags: [Unity,学习记录]
 ---
 

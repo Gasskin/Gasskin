@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "05 透明效果"
-categories: [UnityShader]
-tags: [Unity,图形学] 
+tags: UnityShader
 ---
 
 - **深度测试**

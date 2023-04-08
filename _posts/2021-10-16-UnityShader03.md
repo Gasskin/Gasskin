@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "03 基础光照"
-categories: [UnityShader]
-tags: [Unity,图形学]
+tags: UnityShader
 ---
 
 ### 环境光 

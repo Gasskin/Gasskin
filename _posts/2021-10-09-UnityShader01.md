@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "01 图形学基础01"
-categories: [UnityShader]
-tags: [Unity,图形学]
+tags: UnityShader
 ---
 
 ### 线性代数基础

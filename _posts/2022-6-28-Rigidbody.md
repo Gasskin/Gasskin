@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "Rigidbody"
-categories: [物理]
-tags: [Unity,学习记录]
+tags: 物理系统
 ---
 
 # ForceMode

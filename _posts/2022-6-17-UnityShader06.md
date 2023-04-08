@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "06 更复杂的光照"
-categories: [UnityShader]
-tags: [Unity,图形学]
+tags: UnityShader
 ---
 在此前的章节中，我们存在两个限制：
 1. 场景中仅存在一个平行光

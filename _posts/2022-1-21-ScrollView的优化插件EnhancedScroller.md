@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "ScrollView的优化插件EnhancedScroller"
-categories: [UI]
-tags: [Unity,学习记录]  
+tags: UGUI
 ---
 
 # 基础使用

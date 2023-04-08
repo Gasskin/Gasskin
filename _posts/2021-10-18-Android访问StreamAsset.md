@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "Android访问StreamAsset"
-categories: [Android]
-tags: [Unity,学习记录]
+tags: SDK接入相关
 ---
 
 安卓平台下JAR包变成了压缩包，直接通过File来读取StreamAsset下的文件是不行的

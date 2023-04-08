@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "UIToolKit控件"
-categories: [UI]
-tags: [Unity,学习记录]  
+tags: UGUI
 ---
 
 # 简单示例

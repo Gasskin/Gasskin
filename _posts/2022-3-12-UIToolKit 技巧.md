@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "UIToolKit 技巧"
-categories: [UI]
-tags: [Unity,学习记录]  
+tags: UGUI
 ---
 
 # 3D坐标转2D坐标

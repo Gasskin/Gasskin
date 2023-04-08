@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "Unity与Android通信"
-categories: [Android]
-tags: [Unity,学习记录]
+tags: SDK接入相关
 ---
 
 ### 前言

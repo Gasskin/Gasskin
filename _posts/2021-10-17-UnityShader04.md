@@ -1,8 +1,6 @@
 ---
-layout: post
 title: "04 基础纹理"
-categories: [UnityShader]
-tags: [Unity,图形学]
+tags: UnityShader
 ---
 
 ### 单张纹理

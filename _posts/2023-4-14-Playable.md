@@ -95,19 +95,180 @@ Graph是可以设置更新频率的
 
 <video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月14日221211.mp4" controls="">
 
+# BlendTree
 
+混合树，在状态机里可以很方便的使用，可以通过AnimationMixerPlayable实现
 
+```c#
+public class PlayableTest : MonoBehaviour
+{
+    public AnimationClip walk;
+    public AnimationClip run;
 
+    [Range(0,1)]
+    public float weight;
+    
+    private PlayableGraph graph;
+    private AnimationMixerPlayable mixerPlayable;
+    
+    void Start()
+    {
+        // 创建管理器
+        graph = PlayableGraph.Create("Test");
+        // 走路 输入
+        var walkPlayable = AnimationClipPlayable.Create(graph, walk);
+        // 跑步输入
+        var runPlayable = AnimationClipPlayable.Create(graph, run);
+        // 混合输入，目前需要的input是2
+        mixerPlayable = AnimationMixerPlayable.Create(graph, 2);
 
+        // 将2个Clip输入连接到混合节点
+        graph.Connect(walkPlayable, 0, mixerPlayable, 0);
+        graph.Connect(runPlayable, 0, mixerPlayable, 1);
+        
+        // 创建Animation输出
+        var animationPlayableOutput = AnimationPlayableOutput.Create(graph, "OutPut", GetComponent<Animator>());
+        // 连接输入，这时候连接的是混合节点
+        animationPlayableOutput.SetSourcePlayable(mixerPlayable);
+        // 播放
+        graph.Play();
+    }
 
+    void Update()
+    {
+        mixerPlayable.SetInputWeight(0, 1 - weight);
+        mixerPlayable.SetInputWeight(1, weight);
+    }
+}
+```
 
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月14日222240.mp4" controls="">
 
+`Graph.Connect`这个API，稍微有一点抽象
 
+第一个参数是连接对象，第三个参数是连接目标，这两个参数不难理解，就是你想把哪两个Playable连起来
 
+第二个参数，指的是连接对象的输出端口
 
+第四个参数，指的是连接目标的输入端口
 
+也就是说，这个API的作用是，把连接对象的某一个输出端口，连接到目标的某一个输入端口上
 
+# Animation Lyaers
 
+首先我们创建一个骨骼遮罩，只需要露个头
+
+![image-20230414224244639](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304142242678.png)
+
+```c#
+public class PlayableTest : MonoBehaviour
+{
+    public AnimationClip eyeClose;
+    public AnimationClip run;
+    // 遮罩
+    public AvatarMask faceOnly;
+    
+    [Range(0,1)]
+    public float runWeight;
+    [Range(0,1)]
+    public float simleWeight;
+    
+    private PlayableGraph graph;
+
+    private AnimationLayerMixerPlayable animationLayerMixerPlayable;
+    
+    void Start()
+    {
+        graph= PlayableGraph.Create("ChanPlayableGraph");
+        // 两个动画输入
+        var runClipPlayable = AnimationClipPlayable.Create(graph, run);
+        var eyeCloseClipPlayable = AnimationClipPlayable.Create(graph, eyeClose);
+        // Layer混合
+        animationLayerMixerPlayable = AnimationLayerMixerPlayable.Create(graph, 2);
+
+        graph.Connect(runClipPlayable, 0, animationLayerMixerPlayable, 0);//第0层Layer
+        graph.Connect(eyeCloseClipPlayable, 0, animationLayerMixerPlayable, 1);//第1层Layer
+		
+        // 设置遮罩，这是给eyeClose设置的，目的是让这个动画只会影响头部
+        animationLayerMixerPlayable.SetLayerMaskFromAvatarMask(1, faceOnly);
+        
+        // 输出
+        var animationOutputPlayable = AnimationPlayableOutput.Create(graph, "AnimationOutput", GetComponent<Animator>());
+        animationOutputPlayable.SetSourcePlayable(animationLayerMixerPlayable);
+        graph.Play();
+    }
+
+    void Update()
+    {
+        animationLayerMixerPlayable.SetInputWeight(0, runWeight);
+        animationLayerMixerPlayable.SetInputWeight(1, simleWeight);
+    }
+}
+```
+
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月14日230003.mp4" controls="">
+
+刚开始因为两个Layer的权重都是0，所以啥动画也没有
+
+# Animation Controller
+
+Playable同样支持和状态机混用
+
+我们给模型一个状态机，并加入一个跑步的初始动画
+
+![image-20230414230253222](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304142302244.png)
+
+```c#
+public class PlayableTest : MonoBehaviour
+{
+    public AnimatorController animatorController;
+    public AnimationClip runL;
+    public AnimationClip runR;
+
+    [Range(-1, 1)] public float directWeight;
+    
+    private PlayableGraph graph;
+
+    private AnimationMixerPlayable animationMixerPlayable;
+    
+    void Start()
+    {
+        graph= PlayableGraph.Create("ChanPlayableGraph");
+        // 2输入
+        var runL_Playable = AnimationClipPlayable.Create(graph, runL);
+        var runR_Playable = AnimationClipPlayable.Create(graph, runR);
+        // 1状态机输入
+        var animatorControllerPlayable = AnimatorControllerPlayable.Create(graph, animatorController);
+        
+        // 混合节点
+        animationMixerPlayable = AnimationMixerPlayable.Create(graph, 3);
+        
+        // 连接
+        graph.Connect(runL_Playable, 0, animationMixerPlayable, 0);
+        graph.Connect(animatorControllerPlayable, 0, animationMixerPlayable, 1);
+        graph.Connect(runR_Playable, 0, animationMixerPlayable, 2);
+
+        
+        var animationOutputPlayable = AnimationPlayableOutput.Create(graph, "AnimationOutput", GetComponent<Animator>());
+        animationOutputPlayable.SetSourcePlayable(animationMixerPlayable);
+
+        graph.Play();
+    }
+
+    void Update()
+    {
+        var LWeight = directWeight < 0 ? -directWeight : 0;
+        var RWeight = directWeight > 0 ? directWeight : 0;
+        var runWeight = 1 - LWeight - RWeight;
+        
+        animationMixerPlayable.SetInputWeight(0, LWeight);
+        animationMixerPlayable.SetInputWeight(1, runWeight);
+        animationMixerPlayable.SetInputWeight(2, RWeight);
+    }
+}
+```
+
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月14日231329.mp4" controls="">
 
 
 

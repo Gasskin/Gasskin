@@ -31,15 +31,20 @@ namespace ECGameplay
 
         // 名称
         private string name;
+
         public string Name
         {
             get => name;
             set
             {
                 name = value;
+#if UNITY_EDITOR
+    			// 后文说明
+                GetComponent<GameObjectComponent>()?.OnNameChanged(name);
+#endif
             }
         }
-        
+
         // 实例ID
         public long InstanceId { get; set; }
 
@@ -52,11 +57,13 @@ namespace ECGameplay
 
         // 孩子实体
         public List<Entity> Children { get; private set; } = new List<Entity>();
-        public Dictionary<long,Entity> Id2Children { get; private set; } = new Dictionary<long, Entity>();
-        public Dictionary<Type,List<Entity>> Type2Children { get; private set; } = new Dictionary<Type, List<Entity>>();
-        
+        public Dictionary<long, Entity> Id2Children { get; private set; } = new Dictionary<long, Entity>();
+
+        public Dictionary<Type, List<Entity>> Type2Children { get; private set; } =
+            new Dictionary<Type, List<Entity>>();
+
         // 持有的组件
-        public Dictionary<Type,Component> Components { get; private set; } = new Dictionary<Type, Component>();
+        public Dictionary<Type, Component> Components { get; private set; } = new Dictionary<Type, Component>();
     }
 }
 ```
@@ -72,6 +79,12 @@ namespace ECGameplay
     {
         public Entity()
         {
+#if UNITY_EDITOR
+    		// 后文说明
+            if (this is MasterEntity)
+                return;
+            AddComponent<GameObjectComponent>();
+#endif
         }
 
         public virtual void Awake()
@@ -79,18 +92,6 @@ namespace ECGameplay
         }
 
         public virtual void Awake(object initData)
-        {
-        }
-
-        public virtual void Start()
-        {
-        }
-
-        public virtual void Start(object initData)
-        {
-        }
-
-        public virtual void OnSetParent(Entity pre, Entity now)
         {
         }
 
@@ -110,6 +111,7 @@ namespace ECGameplay
                 {
                     Destroy(Children[i]);
                 }
+
                 Children.Clear();
                 Type2Children.Clear();
             }
@@ -120,6 +122,7 @@ namespace ECGameplay
                 component.Enable = false;
                 Component.Destroy(component);
             }
+
             Components.Clear();
             InstanceId = 0;
             if (Master.Entities.ContainsKey(GetType()))
@@ -133,14 +136,14 @@ namespace ECGameplay
 
 ## 组件方法
 
-添加删除各种组件的方法
+添加删除各种组件的方法，组件是不可以重复添加的
 
 ```c#
 namespace ECGameplay
 {
     public abstract partial class Entity
     {        
-		public T AddComponent<T>() where T : Component
+        public T AddComponent<T>() where T : Component
         {
             var component = Activator.CreateInstance<T>();
             component.Entity = this;
@@ -148,8 +151,11 @@ namespace ECGameplay
             Components.Add(typeof(T), component);
             Master.AllComponents.Add(component);
             component.Awake();
-            component.Setup();
             component.Enable = component.DefaultEnable;
+
+#if UNITY_EDITOR
+            GetComponent<GameObjectComponent>()?.OnAddComponent(component);
+#endif
             return component;
         }
 
@@ -161,8 +167,10 @@ namespace ECGameplay
             Components.Add(typeof(T), component);
             Master.AllComponents.Add(component);
             component.Awake(initData);
-            component.Setup(initData);
             component.Enable = component.DefaultEnable;
+#if UNITY_EDITOR
+            GetComponent<GameObjectComponent>()?.OnAddComponent(component);
+#endif
             return component;
         }
 
@@ -172,6 +180,10 @@ namespace ECGameplay
             if (component.Enable) component.Enable = false;
             Component.Destroy(component);
             Components.Remove(typeof(T));
+            
+#if UNITY_EDITOR
+            GetComponent<GameObjectComponent>()?.OnRemoveComponent(component);
+#endif
         }
 
         public T GetComponent<T>() where T : Component
@@ -189,60 +201,6 @@ namespace ECGameplay
             return Components.TryGetValue(typeof(T), out var component);
         }
 
-        public Component GetComponent(Type componentType)
-        {
-            if (this.Components.TryGetValue(componentType, out var component))
-            {
-                return component;
-            }
-
-            return null;
-        }
-
-        public T Get<T>() where T : Component
-        {
-            if (Components.TryGetValue(typeof(T), out var component))
-            {
-                return component as T;
-            }
-
-            return null;
-        }
-
-        public bool TryGet<T>(out T component) where T : Component
-        {
-            if (Components.TryGetValue(typeof(T), out var c))
-            {
-                component = c as T;
-                return true;
-            }
-
-            component = null;
-            return false;
-        }
-
-        public bool TryGet<T, T1>(out T component, out T1 component1) where T : Component where T1 : Component
-        {
-            component = null;
-            component1 = null;
-            if (Components.TryGetValue(typeof(T), out var c)) component = c as T;
-            if (Components.TryGetValue(typeof(T1), out var c1)) component1 = c1 as T1;
-            if (component != null && component1 != null) return true;
-            return false;
-        }
-
-        public bool TryGet<T, T1, T2>(out T component, out T1 component1, out T2 component2)
-            where T : Component where T1 : Component where T2 : Component
-        {
-            component = null;
-            component1 = null;
-            component2 = null;
-            if (Components.TryGetValue(typeof(T), out var c)) component = c as T;
-            if (Components.TryGetValue(typeof(T1), out var c1)) component1 = c1 as T1;
-            if (Components.TryGetValue(typeof(T2), out var c2)) component2 = c2 as T2;
-            if (component != null && component1 != null && component2 != null) return true;
-            return false;
-        }
     }
 }
 ```
@@ -254,7 +212,7 @@ namespace ECGameplay
 {
     public abstract partial class Entity
     {
-		public T GetParent<T>() where T : Entity
+        public T GetParent<T>() where T : Entity
         {
             return parent as T;
         }
@@ -264,78 +222,30 @@ namespace ECGameplay
             return this as T;
         }
 
-        public bool As<T>(out T entity) where T : Entity
-        {
-            entity = this as T;
-            return entity != null;
-        }
-        
-        private void SetParent(Entity parent)
-        {
-            var preParent = Parent;
-            preParent?.RemoveChild(this);
-            this.parent = parent;
-            OnSetParent(preParent, parent);
-        }
-
-        public void SetChild(Entity child)
-        {
-            Children.Add(child);
-            Id2Children.Add(child.Id, child);
-            if (!Type2Children.ContainsKey(child.GetType())) Type2Children.Add(child.GetType(), new List<Entity>());
-            Type2Children[child.GetType()].Add(child);
-            child.SetParent(this);
-        }
 
         public void RemoveChild(Entity child)
         {
             Children.Remove(child);
-            if (Type2Children.ContainsKey(child.GetType())) Type2Children[child.GetType()].Remove(child);
+            Id2Children.Remove(child.Id);
+            if (Type2Children.ContainsKey(child.GetType())) 
+                Type2Children[child.GetType()].Remove(child);
         }
-
-        public Entity AddChild(Type entityType)
-        {
-            var entity = NewEntity(entityType);
-            SetupEntity(entity, this);
-            return entity;
-        }
-
-        public Entity AddChild(Type entityType, object initData)
-        {
-            var entity = NewEntity(entityType);
-            SetupEntity(entity, this, initData);
-            return entity;
-        }
+        
 
         public T AddChild<T>() where T : Entity
         {
-            return AddChild(typeof(T)) as T;
-        }
-
-        public T AddIdChild<T>(long id) where T : Entity
-        {
-            var entityType = typeof(T);
-            var entity = NewEntity(entityType, id);
+            var entity = NewEntity(typeof(T));
             SetupEntity(entity, this);
             return entity as T;
         }
-
+        
         public T AddChild<T>(object initData) where T : Entity
         {
-            return AddChild(typeof(T), initData) as T;
-        }
-
-        public Entity GetIdChild(long id)
-        {
-            Id2Children.TryGetValue(id, out var entity);
-            return entity;
-        }
-
-        public T GetIdChild<T>(long id) where T : Entity
-        {
-            Id2Children.TryGetValue(id, out var entity);
+            var entity = NewEntity(typeof(T));
+            SetupEntity(entity, this, initData);
             return entity as T;
         }
+
 
         public T GetChild<T>(int index = 0) where T : Entity
         {
@@ -410,7 +320,17 @@ namespace ECGameplay
 
         public static MasterEntity Instance
         {
-            get => instance ??= new MasterEntity();
+            get
+            {
+                if (instance==null)
+                {
+                    instance = new MasterEntity();
+                    var go = instance.AddComponent<GameObjectComponent>().GameObject;
+                    Object.DontDestroyOnLoad(go);
+                }
+
+                return instance;
+            }
             private set => instance = value;
         }
 
@@ -502,12 +422,22 @@ namespace ECGameplay
 
         public static T Create<T>() where T : Entity
         {
-            return Create(typeof(T)) as T;
+            var entity = NewEntity(typeof(T));
+            SetupEntity(entity, Master);
+            return entity as T;
         }
 
         public static T Create<T>(object initData) where T : Entity
         {
-            return Create(typeof(T), initData) as T;
+            var entity = NewEntity(typeof(T));
+            SetupEntity(entity, Master, initData);
+            return entity as T;
+        }
+        
+        public static void Destroy(Entity entity)
+        {
+            entity.OnDestroy();
+            entity.Dispose();
         }
 
         private static void SetupEntity(Entity entity, Entity parent)
@@ -516,7 +446,6 @@ namespace ECGameplay
             {
                 entity.Awake();
             }
-            entity.Start();
         }
 
         private static void SetupEntity(Entity entity, Entity parent, object initData)
@@ -525,27 +454,26 @@ namespace ECGameplay
             {
                 entity.Awake(initData);
             }
-            entity.Start(initData);
         }
-
-        public static Entity Create(Type entityType)
+        
+        private void SetChild(Entity child)
         {
-            var entity = NewEntity(entityType);
-            SetupEntity(entity, Master);
-            return entity;
+            Children.Add(child);
+            Id2Children.Add(child.Id, child);
+            if (!Type2Children.ContainsKey(child.GetType())) 
+                Type2Children.Add(child.GetType(), new List<Entity>());
+            Type2Children[child.GetType()].Add(child);
+            child.SetParent(this);
         }
-
-        public static Entity Create(Type entityType, object initData)
+        
+        private void SetParent(Entity parent)
         {
-            var entity = NewEntity(entityType);
-            SetupEntity(entity, Master, initData);
-            return entity;
-        }
-
-        public static void Destroy(Entity entity)
-        {
-            entity.OnDestroy();
-            entity.Dispose();
+            var preParent = Parent;
+            preParent?.RemoveChild(this);
+            this.parent = parent;
+#if UNITY_EDITOR
+            parent.GetComponent<GameObjectComponent>()?.OnAddChild(this);
+#endif
         }
     }
 }
@@ -599,16 +527,6 @@ namespace ECGameplay
 
         }
 
-        public virtual void Setup()
-        {
-
-        }
-
-        public virtual void Setup(object initData)
-        {
-
-        }
-
         public virtual void OnEnable()
         {
 
@@ -629,18 +547,178 @@ namespace ECGameplay
             
         }
 
-        private void Dispose()
+        public static void Destroy(Component component)
         {
-            Enable = false;
-            IsDisposed = true;
-        }
-
-        public static void Destroy(Component entity)
-        {
-            entity.OnDestroy();
-            entity.Dispose();
+            component.Enable = false;
+            component.OnDestroy();
+            component.IsDisposed = true;
         }
     }
 }
 ```
+
+# 一些基础组件
+
+## ComponetView
+
+这不是一个Component，这是一个Mono类，单纯用于编辑器可视化的
+
+大部分都是可视化方法（单纯为了好看）
+
+用到了Odin的几个特性哈，Odin不多介绍了
+
+```c#
+namespace ECGameplay
+{
+    public class ComponentView : MonoBehaviour
+    {
+        [HideInInspector] public List<string> componts = new List<string>();
+
+        private Random random = new Random();
+        private List<Color> colors = new List<Color>();
+
+        [OnInspectorGUI]
+        private void OnInspectGUI()
+        {
+            PrepareColor();
+            GUI.enabled = false;
+            for (int i = 0; i < componts.Count; i++)
+            {
+                GUI.color = colors[i];
+                EditorGUILayout.TextField(componts[i]);
+            }
+
+            GUI.color = Color.white;
+            GUI.enabled = true;
+        }
+
+        private void PrepareColor()
+        {
+            if (colors.Count < componts.Count)
+            {
+                for (int i = colors.Count; i < componts.Count; i++)
+                {
+                    colors.Add(GetRandomColor());
+                }
+            }
+        }
+
+        private Color GetRandomColor()
+        {
+            var r = (float)random.NextDouble();
+            var g = (float)random.NextDouble();
+            var b = (float)random.NextDouble();
+            return new Color(r, g, b, 1);
+        }
+    }
+}
+```
+
+## GameObjectComponent
+
+一个标准的Componenet，不过也是用于编辑器可视化的
+
+```c#
+namespace ECGameplay.BasicComponent
+{
+    public class GameObjectComponent : Component
+    {
+        public GameObject GameObject { get;private set; }
+
+        public override void Awake()
+        {
+            GameObject = new GameObject(Entity.GetType().Name);
+        }
+        
+        public override void OnDestroy()
+        {
+            base.OnDestroy();
+            UnityEngine.GameObject.Destroy(GameObject);
+        }
+        
+        public void OnNameChanged(string name)
+        {
+            GameObject.name = $"{Entity.GetType().Name}: {name}";
+        }
+
+        public void OnAddComponent(Component component)
+        {
+            var view = GameObject.AddComponent<ComponentView>();
+            view.Type = component.GetType().Name;
+            view.Component = component;
+        }
+
+        public void OnRemoveComponent(Component component)
+        {
+            var comps = GameObject.GetComponents<ComponentView>();
+            foreach (var item in comps)
+            {
+                if (item.Component == component)
+                {
+                    UnityEngine.GameObject.Destroy(item);
+                }
+            }
+        }
+
+        public void OnAddChild(Entity child)
+        {
+            if (child.GetComponent<GameObjectComponent>() != null)
+            {
+                child.GetComponent<GameObjectComponent>().GameObject.transform.SetParent(GameObject.transform);
+            }
+        }
+    }
+}
+```
+
+## UpdateComponent
+
+我们所有Entity上的所有Component都被集中到MasterEntity里了，每一帧都会遍历更新
+
+虽然我们的Entity也有Update方法， 但默认是没地方调用的，这个组件的作用就让Entity也可以Update
+
+```c#
+namespace ECGameplay
+{
+    public class UpdateComponent : Component
+    {
+        public override void Update()
+        {
+            Entity.Update();
+        }
+    }
+}
+```
+
+# 测试
+
+```c#
+public class Test : MonoBehaviour
+{
+    private MasterEntity MasterEntity => MasterEntity.Instance;
+    
+    public class TestEntity : Entity
+    {
+        public override void Update()
+        {
+            Debug.Log(Time.time);
+        }
+    }
+    
+    private void Start()
+    {
+        var entity = MasterEntity.AddChild<TestEntity>();
+        entity.AddComponent<UpdateComponent>();
+    }
+
+    private void Update()
+    {
+        MasterEntity.Update();
+    }
+}
+```
+
+![image-20230419224003357](C:\Users\Logarius\AppData\Roaming\Typora\typora-user-images\image-20230419224003357.png)
+
+![image-20230419220447242](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304192204287.png)
 

@@ -27,6 +27,7 @@ namespace ECGameplay
     /// </summary>
     public interface IAction
     {
+        // 后改为 CombatEntity
         public Entity OwnerEntity { get; set; }
         public bool Enable { get; set; }
     }
@@ -42,7 +43,8 @@ namespace ECGameplay
 {
     public class AttackAction : Entity,IAction
     {
-        public Entity OwnerEntity { get; set; }
+        // 后改为 CombatEntity
+        public Entity OwnerEntity {get => GetParent<Entity>();set{}}
         public bool Enable { get; set; }
         
         public bool TryMakeAction(out AttackActionExecution action)
@@ -75,9 +77,9 @@ namespace ECGameplay
     {
         /// 行动能力
         public Entity ActionAbility { get; set; }
-        /// 行动实体
+        /// 行动实体 后改为 CombatEntity
         public Entity Creator { get; set; }
-        /// 目标对象
+        /// 目标对象 后改为 CombatEntity
         public Entity Target { get; set; }
 
         /// 行动结束
@@ -99,11 +101,11 @@ namespace ECGameplay
     {
         // 行为
         public Entity Action { get; set; }
-        // 释放者
+        // 释放者 后改为 CombatEntity
         public Entity Creator { get; set; }
-        // 目标
+        // 目标 后改为 CombatEntity
         public Entity Target { get; set; }
-        // 能力执行体
+        // 能力执行体（后文解释）
         public AttackAbilityExecution AttackAbilityExecution { get; set; }
 
         public void ApplyAttack()
@@ -134,8 +136,8 @@ namespace ECGameplay
     /// </summary>
     public interface IAbility
     {
+        // 后改为 CombatEntity
         public Entity OwnerEntity { get; set; }
-        public Entity ParentEntity { get; }
         public bool Enable { get; set; }
 
         /// 尝试激活能力
@@ -166,13 +168,12 @@ namespace ECGameplay
 {
     public class AttackAbility: Entity,IAbility
     {
+        // 后改为 CombatEntity
         public Entity OwnerEntity
         {
             get=> GetParent<Entity>();
             set{}
         }
-
-        public Entity ParentEntity => GetParent<Entity>();
         
         public bool Enable { get; set; }
 
@@ -233,6 +234,7 @@ namespace ECGameplay
     public interface IAbilityExecution
     {
         public Entity AbilityEntity { get; set; }
+        // 后改为 CombatEntity
         public Entity OwnerEntity { get; set; }
 
         /// 开始执行
@@ -256,6 +258,7 @@ namespace ECGameplay
 public class AttackAbilityExecution : Entity, IAbilityExecution
 {
     public Entity AbilityEntity { get; set; }
+    // 后改为 CombatEntity
     public Entity OwnerEntity { get; set; }
     public AttackActionExecution AttackActionExecution { get; set; }
 
@@ -301,8 +304,10 @@ public class AttackAbilityExecution : Entity, IAbilityExecution
         damaged = true;
 
         // 后文解释
-        AttackAction.Creator.TriggerActionPoint(ActionPointType.PreGiveAttackEffect, AttackAction);
-        AttackAction.Target.TriggerActionPoint(ActionPointType.PreReceiveAttackEffect, AttackAction);
+        AttackActionExecution.Creator.GetComponent<ActionPointComponent>()
+            .TriggerActionPoint(ActionPointType.PreGiveAttackEffect, AttackActionExecution);
+        AttackActionExecution.Target.GetComponent<ActionPointComponent>()
+            .TriggerActionPoint(ActionPointType.PreReceiveAttackEffect, AttackActionExecution);
 
         if (blocked)
         {
@@ -322,4 +327,419 @@ public class AttackAbilityExecution : Entity, IAbilityExecution
     }
 }
 ```
+
+# 测试
+
+```c#
+public class Test : MonoBehaviour
+{
+    private MasterEntity MasterEntity => MasterEntity.Instance;
+    private Entity entity;
+
+    public class TestEntity : Entity
+    {
+        public override void Update()
+        {
+            Debug.Log(GetComponent<AttributeComponent>()?.HealthPoint.Value);
+        }
+    }
+
+    private void Start()
+    {
+        entity = MasterEntity.AddChild<TestEntity>();
+        entity.AddComponent<UpdateComponent>();
+        entity.AddComponent<AttributeComponent>();
+        entity.AddChild<AttackAction>().Enable = true;
+        entity.AddChild<AttackAbility>();
+    }
+
+    private void Update()
+    {
+        MasterEntity.Update();
+    }
+
+    public void Attack()
+    {
+        var attackAction = entity.GetChild<AttackAction>();
+        if (attackAction != null)
+        {
+            if (attackAction.TryMakeAction(out var actionExecution))
+            {
+                actionExecution.ApplyAttack();
+            }
+        }
+    }
+}
+```
+
+![image-20230420230738740](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304202307773.png)
+
+# ActionPoint
+
+行动点，其实就是一个行为各个阶段，抛个事件出来而已
+
+```c#
+namespace ECGameplay
+{
+    public sealed class ActionPoint
+    {
+        public List<Action<Entity>> Listeners { get; set; } = new List<Action<Entity>>();
+
+
+        public void AddListener(Action<Entity> action)
+        {
+            Listeners.Add(action);
+        }
+
+        public void RemoveListener(Action<Entity> action)
+        {
+            Listeners.Remove(action);
+        }
+
+        public void TriggerAllActions(Entity actionExecution)
+        {
+            if (Listeners.Count == 0)
+            {
+                return;
+            }
+            for (int i = Listeners.Count - 1; i >= 0; i--)
+            {
+                var item = Listeners[i];
+                item.Invoke(actionExecution);
+            }
+        }
+    }
+}
+```
+
+## ActionPointComponent
+
+也很简单，就是基于ActionPoint的一个字典形消息管理器
+
+```c#
+namespace ECGameplay
+{
+    [Flags]
+    public enum ActionPointType
+    {
+        [LabelText("（空）")]
+        None = 0,
+
+        [LabelText("造成伤害前")]
+        PreCauseDamage = 1 << 1,
+        [LabelText("承受伤害前")]
+        PreReceiveDamage = 1 << 2,
+
+        [LabelText("造成伤害后")]
+        PostCauseDamage = 1 << 3,
+        [LabelText("承受伤害后")]
+        PostReceiveDamage = 1 << 4,
+
+        [LabelText("给予治疗后")]
+        PostGiveCure = 1 << 5,
+        [LabelText("接受治疗后")]
+        PostReceiveCure = 1 << 6,
+
+        [LabelText("赋给技能效果")]
+        AssignEffect = 1 << 7,
+        [LabelText("接受技能效果")]
+        ReceiveEffect = 1 << 8,
+
+        [LabelText("赋加状态后")]
+        PostGiveStatus = 1 << 9,
+        [LabelText("承受状态后")]
+        PostReceiveStatus = 1 << 10,
+
+        [LabelText("给予普攻前")]
+        PreGiveAttack = 1 << 11,
+        [LabelText("给予普攻后")]
+        PostGiveAttack = 1 << 12,
+
+        [LabelText("遭受普攻前")]
+        PreReceiveAttack = 1 << 13,
+        [LabelText("遭受普攻后")]
+        PostReceiveAttack = 1 << 14,
+
+        [LabelText("起跳前")]
+        PreJumpTo= 1 << 15,
+        [LabelText("起跳后")]
+        PostJumpTo = 1 << 16,
+
+        [LabelText("施法前")]
+        PreSpell = 1 << 17,
+        [LabelText("施法后")]
+        PostSpell = 1 << 18,
+
+        [LabelText("赋给普攻效果前")]
+        PreGiveAttackEffect = 1 << 19,
+        [LabelText("赋给普攻效果后")]
+        PostGiveAttackEffect = 1 << 20,
+        [LabelText("承受普攻效果前")]
+        PreReceiveAttackEffect = 1 << 21,
+        [LabelText("承受普攻效果后")]
+        PostReceiveAttackEffect = 1 << 22,
+
+        Max,
+    }
+    
+    public sealed class ActionPointComponent : Component
+    {
+        private Dictionary<ActionPointType, ActionPoint> ActionPoints { get; set; } 
+        	= new Dictionary<ActionPointType, ActionPoint>();
+
+
+        public void AddListener(ActionPointType actionPointType, Action<Entity> action)
+        {
+            if (!ActionPoints.ContainsKey(actionPointType))
+            {
+                ActionPoints.Add(actionPointType, new ActionPoint());
+            }
+            ActionPoints[actionPointType].AddListener(action);
+        }
+
+        public void RemoveListener(ActionPointType actionPointType, Action<Entity> action)
+        {
+            if (ActionPoints.ContainsKey(actionPointType))
+            {
+                ActionPoints[actionPointType].RemoveListener(action);
+            }
+        }
+
+        public ActionPoint GetActionPoint(ActionPointType actionPointType)
+        {
+            if (ActionPoints.TryGetValue(actionPointType, out var actionPoint)) ;
+            return actionPoint;
+        }
+
+        public void TriggerActionPoint(ActionPointType actionPointType, Entity actionExecution)
+        {
+            if (ActionPoints.TryGetValue(actionPointType, out var actionPoint))
+            {
+                actionPoint.TriggerAllActions(actionExecution);
+            }
+        }
+    }
+}
+```
+
+# CombatEntity
+
+我们当然可以基于Entity，就像上面的例子那样，但是每次都这样创建实在是太麻烦了，大多数战斗单位的很多行为其实是通用的，简单封装一下
+
+```c#
+namespace ECGameplay
+{
+    public class CombatEntity : Entity
+    {
+        public GameObject target;
+        public AttackAction AttackAction { get; private set; }
+        public AttackAbility AttackAbility { get; private set; }
+
+        public override void Awake()
+        {
+            AddComponent<AttributeComponent>();
+            AddComponent<ActionPointComponent>();
+
+            AttackAction = AttachAction<AttackAction>();
+
+            AttackAbility = AttachAbility<AttackAbility>();
+        }
+
+        public void ListenActionPoint(ActionPointType actionPointType, Action<Entity> action)
+        {
+            GetComponent<ActionPointComponent>().AddListener(actionPointType, action);
+        }
+
+        public void UnListenActionPoint(ActionPointType actionPointType, Action<Entity> action)
+        {
+            GetComponent<ActionPointComponent>().RemoveListener(actionPointType, action);
+        }
+
+        public void TriggerActionPoint(ActionPointType actionPointType, Entity action)
+        {
+            GetComponent<ActionPointComponent>().TriggerActionPoint(actionPointType, action);
+        }
+
+        private T AttachAbility<T>(object config = null) where T : Entity, IAbility
+        {
+            var ability = config == null ? AddChild<T>() : AddChild<T>(config);
+            return ability;
+        }
+        
+        private T AttachAction<T>(object config = null) where T : Entity, IAction
+        {
+            var action = config == null ? AddChild<T>() : AddChild<T>(config);
+            action.Enable = true;
+            return action;
+        }
+    }
+}
+```
+
+本身没啥逻辑，其实就是把上述的组件整合到一个通用类里了
+
+后续这个类会不断扩展
+
+# Block
+
+格挡行为
+
+## MathUtil
+
+工具类
+
+```c#
+namespace ECGameplay
+{
+    public static class MathUtil
+    {
+        private static Random random = new Random();
+
+        /// <summary>
+        /// 抽奖
+        /// </summary>
+        /// <param name="probability">概率（0-1）</param>
+        /// <returns>是否抽中</returns>
+        public static bool PrizeDraw(float probability)
+        {
+            probability = Math.Clamp(probability, 0, 1);
+            if (probability == 0)
+                return false;
+            if (Math.Abs(probability - 1) < 0.00001f)
+                return true;
+            return (float)random.NextDouble() <= probability;
+        }
+    }
+}
+```
+
+## BlockAction
+
+所有逻辑一次性写完了，确实也不会有问题，因为这是很简单的一个行为
+
+但是复杂行为还是建议拆分
+
+```c#
+namespace ECGameplay
+{
+    /// <summary>
+    /// 格挡行为
+    /// </summary>
+    public class BlockAction : Entity,IAction
+    {
+        public CombatEntity OwnerEntity
+        {
+            get=> GetParent<CombatEntity>();
+            set{}
+        }
+        
+        public bool Enable { get; set; }
+
+        public override void Awake()
+        {
+            OwnerEntity?.ListenActionPoint(ActionPointType.PreReceiveAttackEffect, TryBlock);
+        }
+
+        
+        private void TryBlock(Entity actionExecution)
+        {
+            // 模拟概率30%
+            var flag = MathUtil.PrizeDraw(0.3f);
+            if (flag)
+            {
+                var attackExecution = actionExecution.As<AttackActionExecution>();
+                attackExecution.AttackAbilityExecution.SetBlocked();
+            }
+        }
+    }
+}
+```
+
+# 测试
+
+记得把格挡行为添加到CombatEntity里
+
+```c#
+public class Test : MonoBehaviour
+{
+
+    public GameObject hero;
+    public GameObject monster;
+
+    private MasterEntity Master => MasterEntity.Instance;
+    private CombatEntity HeroEntity;
+    private CombatEntity MonsterEntity;
+    
+    
+    private void Start()
+    {
+        HeroEntity = Master.AddChild<CombatEntity>();
+        HeroEntity.target = hero;
+        
+        MonsterEntity = Master.AddChild<CombatEntity>();
+        MonsterEntity.target = monster;
+    }
+
+    private void Update()
+    {
+        Master.Update();
+    }
+
+    public void Attack()
+    {
+        if (HeroEntity.AttackAction.TryMakeAction(out var actionExecution))
+        {
+            // 设置目标
+            actionExecution.Target = MonsterEntity;
+            actionExecution.ApplyAttack();
+        }
+    }
+}
+```
+
+![image-20230421004507535](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304210045594.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

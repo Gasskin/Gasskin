@@ -77,11 +77,12 @@ namespace ECGameplay
     {
         /// 行动能力
         public Entity ActionAbility { get; set; }
+        /// 后文解释，效果赋给行动，不是每种行为都会附带效果赋给行为的
+        public EffectAssignActionExecution EffectActionExecution { get; set; }
         /// 行动实体 后改为 CombatEntity
         public Entity Creator { get; set; }
         /// 目标对象 后改为 CombatEntity
         public Entity Target { get; set; }
-
         /// 行动结束
         public void FinishAction();
     }
@@ -97,25 +98,28 @@ namespace ECGameplay
 ```c#
 namespace ECGameplay
 {
- public class AttackActionExecution : Entity, IActionExecution
+    public class AttackActionExecution : Entity, IActionExecution
     {
         // 行为
-        public Entity Action { get; set; }
-        // 释放者 后改为 CombatEntity
-        public Entity Creator { get; set; }
-        // 目标 后改为 CombatEntity
-        public Entity Target { get; set; }
-        // 能力执行体（后文解释）
+        public IAction Action { get; set; }
+		// 效果应用行为，不过攻击行为执行体是没有的
+        public EffectAssignActionExecution EffectActionExecution { get; set; }
+        // 释放者
+        public CombatEntity Creator { get; set; }
+        // 目标
+        public CombatEntity Target { get; set; }
+        // 能力执行体
         public AttackAbilityExecution AttackAbilityExecution { get; set; }
 
         public void ApplyAttack()
         {
+            // 获取Creator的攻击能力
             var attackAbility = Creator.GetChild<AttackAbility>();
+            // 创建一个能力执行体，并开始执行
             AttackAbilityExecution = attackAbility.CreateExecution().As<AttackAbilityExecution>();
             AttackAbilityExecution.AttackActionExecution = this;
             AttackAbilityExecution.BeginExecute();
-        }
-        
+        }      
         public void FinishAction()
         {
             Destroy(this);
@@ -166,31 +170,26 @@ namespace ECGameplay
 ```c#
 namespace ECGameplay
 {
-    public class AttackAbility: Entity,IAbility
+    public class AttackAbility : Entity, IAbility
     {
-        // 后改为 CombatEntity
-        public Entity OwnerEntity
+        public CombatEntity OwnerEntity
         {
-            get=> GetParent<Entity>();
-            set{}
+            get => GetParent<CombatEntity>();
+            set { }
         }
-        
+
         public bool Enable { get; set; }
+        
+        private SkillConfig SkillConfig { get; set; }
 
-
-        public override void Awake()
+        public override void Awake(object initObject)
         {
-            // 后文解释
-            var effects = new List<Effect>();
-            var damageEffect = new DamageEffect();
-            damageEffect.Enabled = true;
-            damageEffect.AddSkillEffectTargetType = AddSkillEffetTargetType.SkillTarget;
-            damageEffect.EffectTriggerType = EffectTriggerType.Condition;
-            damageEffect.CanCrit = true;
-            damageEffect.DamageType = DamageType.Physic;
-            damageEffect.DamageValueFormula = $"自身攻击力";
-            effects.Add(damageEffect);
-            AddComponent<AbilityEffectComponent>(effects);
+            // 需要传入具体的能力配表
+            if (initObject is SkillConfig skillConfig)
+            {
+                // 后文解释，能力效果组件
+                AddComponent<AbilityEffectComponent>(skillConfig);
+            }
         }
 
         public void TryActivateAbility()
@@ -212,9 +211,9 @@ namespace ECGameplay
 
         public Entity CreateExecution()
         {
-            // 后文解释
+            // 添加一个能力执行体
             var execution = OwnerEntity.AddChild<AttackAbilityExecution>(this);
-            execution.AbilityEntity = this;
+            execution.Ability = this;
             return execution;
         }
     }
@@ -233,9 +232,8 @@ namespace ECGameplay
     /// </summary>
     public interface IAbilityExecution
     {
-        public Entity AbilityEntity { get; set; }
-        // 后改为 CombatEntity
-        public Entity OwnerEntity { get; set; }
+        public IAbility Ability { get; set; }
+        public CombatEntity OwnerEntity { get; set; }
 
         /// 开始执行
         public void BeginExecute();
@@ -255,124 +253,84 @@ namespace ECGameplay
 整个能力结束后，再释放行为执行体
 
 ```c#
-public class AttackAbilityExecution : Entity, IAbilityExecution
+namespace ECGameplay
 {
-    public Entity AbilityEntity { get; set; }
-    // 后改为 CombatEntity
-    public Entity OwnerEntity { get; set; }
-    public AttackActionExecution AttackActionExecution { get; set; }
-
-    // 被格挡
-    private bool blocked;
-
-    // 已经触发伤害
-    private bool damaged;
-
-    public void BeginExecute()
+    public class AttackAbilityExecution : Entity, IAbilityExecution
     {
-        AddComponent<UpdateComponent>();
-    }
+        // 持有的能力
+        public IAbility Ability { get; set; }
+        // 后改为CombatEntity
+        public Entity OwnerEntity { get; set; }
+        // 对应的行为执行体
+        public AttackActionExecution AttackActionExecution { get; set; }
 
-    public void EndExecute()
-    {
-        AttackActionExecution.FinishAction();
-        Destroy(this);
-    }
-    
-    public void SetBlocked()
-    {
-        blocked = true;
-    }
+        // 被格挡
+        private bool blocked;
 
-    public override void Update()
-    {
-        if (!IsDispose)
+        // 已经触发伤害
+        private bool damaged;
+
+        public void BeginExecute()
         {
-            if (!damaged)
-            {
-                TryTriggerAttackEffect();
-            }
-            else
-            {
-                EndExecute();
-            }
+            AddComponent<UpdateComponent>();
         }
-    }
-    
-    private void TryTriggerAttackEffect()
-    {
-        damaged = true;
 
-        // 后文解释
-        AttackActionExecution.Creator.GetComponent<ActionPointComponent>()
-            .TriggerActionPoint(ActionPointType.PreGiveAttackEffect, AttackActionExecution);
-        AttackActionExecution.Target.GetComponent<ActionPointComponent>()
-            .TriggerActionPoint(ActionPointType.PreReceiveAttackEffect, AttackActionExecution);
-
-        if (blocked)
+        public void EndExecute()
         {
-            Debug.LogError("被格挡了");
+            AttackActionExecution.FinishAction();
+            Destroy(this);
         }
-        else
+        
+        public void SetBlocked()
         {
-            // 后文解释
-            var effectAssigns = 
-            	AbilityEntity.GetComponent<AbilityEffectComponent>().CreateAssignActions(AttackAction.Target);
-            foreach (var item in effectAssigns)
-            {
-                item.AssignEffect();
-            }
-        	Debug.LogError("进行一次普工");
+            blocked = true;
         }
-    }
-}
-```
 
-# 测试
-
-```c#
-public class Test : MonoBehaviour
-{
-    private MasterEntity MasterEntity => MasterEntity.Instance;
-    private Entity entity;
-
-    public class TestEntity : Entity
-    {
         public override void Update()
         {
-            Debug.Log(GetComponent<AttributeComponent>()?.HealthPoint.Value);
-        }
-    }
-
-    private void Start()
-    {
-        entity = MasterEntity.AddChild<TestEntity>();
-        entity.AddComponent<UpdateComponent>();
-        entity.AddComponent<AttributeComponent>();
-        entity.AddChild<AttackAction>().Enable = true;
-        entity.AddChild<AttackAbility>();
-    }
-
-    private void Update()
-    {
-        MasterEntity.Update();
-    }
-
-    public void Attack()
-    {
-        var attackAction = entity.GetChild<AttackAction>();
-        if (attackAction != null)
-        {
-            if (attackAction.TryMakeAction(out var actionExecution))
+            if (!IsDispose)
             {
-                actionExecution.ApplyAttack();
+                if (!damaged)
+                {
+                    TryTriggerAttackEffect();
+                }
+                else
+                {
+                    EndExecute();
+                }
             }
+        }
+        
+        private void TryTriggerAttackEffect()
+        {
+            damaged = true;
+
+            // 行动点
+            AttackActionExecution.Creator?.TriggerActionPoint(ActionPointType.BeforeGiveAttackEffect, AttackActionExecution);
+            AttackActionExecution.Target?.TriggerActionPoint(ActionPointType.BeforeReceiveAttackEffect, AttackActionExecution);
+
+            if (blocked)
+            {
+                Debug.LogError("被格挡了");
+                return;
+            }
+            
+            // 创建所有的效果应用行为，并执行，后文解释
+            var actionExecutions = (Ability as AttackAbility)?.GetComponent<AbilityEffectComponent>()
+                .CreateAssignActions(AttackActionExecution.Target);
+            if (actionExecutions == null) return;
+            foreach (var actionExecution in actionExecutions)
+                actionExecution.AssignEffect();
+            
+            Debug.LogError("进行一次普工");
+            
+            // 行动点
+            AttackActionExecution.Creator?.TriggerActionPoint(ActionPointType.AfterGiveAttack, AttackActionExecution);
+            AttackActionExecution.Target?.TriggerActionPoint(ActionPointType.AfterReceiveAttack, AttackActionExecution);
         }
     }
 }
 ```
-
-![image-20230420230738740](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304202307773.png)
 
 # ActionPoint
 
@@ -426,19 +384,19 @@ namespace ECGameplay
         None = 0,
 
         [LabelText("造成伤害前")]
-        PreCauseDamage = 1 << 1,
+        BeforeCauseDamage = 1 << 1,
         [LabelText("承受伤害前")]
-        PreReceiveDamage = 1 << 2,
+        BeforeReceiveDamage = 1 << 2,
 
         [LabelText("造成伤害后")]
-        PostCauseDamage = 1 << 3,
+        AfterCauseDamage = 1 << 3,
         [LabelText("承受伤害后")]
-        PostReceiveDamage = 1 << 4,
+        AfterReceiveDamage = 1 << 4,
 
         [LabelText("给予治疗后")]
-        PostGiveCure = 1 << 5,
+        AfterGiveCure = 1 << 5,
         [LabelText("接受治疗后")]
-        PostReceiveCure = 1 << 6,
+        AfterReceiveCure = 1 << 6,
 
         [LabelText("赋给技能效果")]
         AssignEffect = 1 << 7,
@@ -446,38 +404,38 @@ namespace ECGameplay
         ReceiveEffect = 1 << 8,
 
         [LabelText("赋加状态后")]
-        PostGiveStatus = 1 << 9,
+        AfterGiveStatus = 1 << 9,
         [LabelText("承受状态后")]
-        PostReceiveStatus = 1 << 10,
+        AfterReceiveStatus = 1 << 10,
 
         [LabelText("给予普攻前")]
-        PreGiveAttack = 1 << 11,
+        BeforeGiveAttack = 1 << 11,
         [LabelText("给予普攻后")]
-        PostGiveAttack = 1 << 12,
+        AfterGiveAttack = 1 << 12,
 
         [LabelText("遭受普攻前")]
-        PreReceiveAttack = 1 << 13,
+        BeforeReceiveAttack = 1 << 13,
         [LabelText("遭受普攻后")]
-        PostReceiveAttack = 1 << 14,
+        AfterReceiveAttack = 1 << 14,
 
         [LabelText("起跳前")]
-        PreJumpTo= 1 << 15,
+        BeforeJumpTo= 1 << 15,
         [LabelText("起跳后")]
-        PostJumpTo = 1 << 16,
+        AfterJumpTo = 1 << 16,
 
         [LabelText("施法前")]
-        PreSpell = 1 << 17,
+        BeforeSpell = 1 << 17,
         [LabelText("施法后")]
-        PostSpell = 1 << 18,
+        AfterSpell = 1 << 18,
 
         [LabelText("赋给普攻效果前")]
-        PreGiveAttackEffect = 1 << 19,
+        BeforeGiveAttackEffect = 1 << 19,
         [LabelText("赋给普攻效果后")]
-        PostGiveAttackEffect = 1 << 20,
+        AfterGiveAttackEffect = 1 << 20,
         [LabelText("承受普攻效果前")]
-        PreReceiveAttackEffect = 1 << 21,
+        BeforeReceiveAttackEffect = 1 << 21,
         [LabelText("承受普攻效果后")]
-        PostReceiveAttackEffect = 1 << 22,
+        AfterReceiveAttackEffect = 1 << 22,
 
         Max,
     }
@@ -560,12 +518,18 @@ namespace ECGameplay
             GetComponent<ActionPointComponent>().TriggerActionPoint(actionPointType, action);
         }
 
-        private T AttachAbility<T>(object config = null) where T : Entity, IAbility
+        private T AttachAbility<T>(int id) where T : Entity, IAbility
         {
-            var ability = config == null ? AddChild<T>() : AddChild<T>(config);
-            return ability;
+            // 配表读取，后文解释
+            if (TableUtil.Tables.SkillTable.DataMap.TryGetValue(id, out var config))
+            {
+                return AddChild<T>(config);
+            }
+
+            Debug.LogError("AttachAbility Error : " + id);
+            return null;
         }
-        
+
         private T AttachAction<T>(object config = null) where T : Entity, IAction
         {
             var action = config == null ? AddChild<T>() : AddChild<T>(config);
@@ -578,11 +542,7 @@ namespace ECGameplay
 
 本身没啥逻辑，其实就是把上述的组件整合到一个通用类里了
 
-后续这个类会不断扩展
-
-# Block
-
-格挡行为
+后续这个类会不断扩展，不再说明
 
 ## MathUtil
 
@@ -654,52 +614,6 @@ namespace ECGameplay
     }
 }
 ```
-
-# 测试
-
-记得把格挡行为添加到CombatEntity里
-
-```c#
-public class Test : MonoBehaviour
-{
-
-    public GameObject hero;
-    public GameObject monster;
-
-    private MasterEntity Master => MasterEntity.Instance;
-    private CombatEntity HeroEntity;
-    private CombatEntity MonsterEntity;
-    
-    
-    private void Start()
-    {
-        HeroEntity = Master.AddChild<CombatEntity>();
-        HeroEntity.target = hero;
-        
-        MonsterEntity = Master.AddChild<CombatEntity>();
-        MonsterEntity.target = monster;
-    }
-
-    private void Update()
-    {
-        Master.Update();
-    }
-
-    public void Attack()
-    {
-        if (HeroEntity.AttackAction.TryMakeAction(out var actionExecution))
-        {
-            // 设置目标
-            actionExecution.Target = MonsterEntity;
-            actionExecution.ApplyAttack();
-        }
-    }
-}
-```
-
-![image-20230421004507535](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304210045594.png)
-
-
 
 
 

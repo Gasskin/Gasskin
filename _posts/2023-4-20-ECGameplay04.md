@@ -539,13 +539,80 @@ public class Monster : MonoBehaviour
 
 <video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月23日223233.mp4" controls=""></video>
 
+# 状态
 
+也是一种效果，不过拥有自己的生命周期，简单划分三种状态
 
+- **属性修饰** 提升/降低某个属性
+- **行为禁止** 比如眩晕，沉默
+- **逻辑触发** 比如几秒后，生命值低于多少后，等等等等
 
+## 计时器
 
+### GameTimer
 
+一个简单计时器，本身不能Update，需要Component去Update
 
+```c#
+namespace ECGameplay
+{
+    public class GameTimer
+    {
+        private float maxTime;
+        private float time;
+        private Action action;
 
+        public bool IsFinished => time >= maxTime;
+        public bool IsRunning => time < maxTime;
+
+        public float MaxTime
+        {
+            get => maxTime;
+            set => maxTime = value;
+        }
+
+        public GameTimer(float maxTime,Action action)
+        {
+            if (maxTime <= 0)
+                throw new Exception($"_maxTime can not be 0 or negative");
+            this.maxTime = maxTime;
+            this.action = action;
+            time = 0f;
+        }
+
+        public void Reset()
+        {
+            time = 0f;
+        }
+
+        public void UpdateAsFinish(float delta)
+        {
+            if (!IsFinished)
+            {
+                time += delta;
+                if (IsFinished)
+                {
+                    action?.Invoke();
+                }
+            }
+        }
+
+        public void UpdateAsRepeat(float delta)
+        {
+            if (delta > maxTime)
+                throw new Exception($"_maxTime too small, delta:{delta} > _maxTime:{maxTime}");
+            time += delta;
+            while (time >= maxTime)
+            {
+                time -= maxTime;
+                action?.Invoke();
+            }
+        }
+    }
+}
+```
+
+## Action
 
 
 

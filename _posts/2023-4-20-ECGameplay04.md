@@ -431,15 +431,113 @@ AbilityEffect由AbilityEffectComponent添加
 
 ![image-20230423010008990](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230100013.png)
 
-# 生命周期
+## 生命周期
+
+![image-20230423221806771](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304232218865.png)
+
+# 简单Demo
+
+截止到当前，编写的代码基本都是纯逻辑的，所以简单写一个小demo，提供一些可视化
+
+## Hero
+
+```c#
+public class Hero : MonoBehaviour
+{
+    public CombatEntity combatEntity;
+
+    public Monster monsterMono;
+    public GameObject lineEffectPrefab;
+    public GameObject hitEffectPrefab;
+    public Image healthBar;
+    public Text valueText;
+
+    void Start()
+    {
+        combatEntity = MasterEntity.Instance.AddChild<CombatEntity>();
+        combatEntity.ListenActionPoint(ActionPointType.BeforeGiveAttackEffect, OnBeforeGiveAttackEffect);
+    }
+
+    public void Attack()
+    {
+        if (combatEntity.AttackAction.TryMakeAction(out var actionExecution))
+        {
+            actionExecution.Target = monsterMono.combatEntity;
+            actionExecution.ApplyAttack();
+        }
+    }
+
+    private void OnBeforeGiveAttackEffect(Entity actionExecution)
+    {
+        SpawnLineEffect(transform.position, monsterMono.transform.position);
+        SpawnHitEffect(transform.position, monsterMono.transform.position);
+    }
 
 
+    private void SpawnLineEffect(Vector3 p1, Vector3 p2)
+    {
+        var attackEffect = Instantiate(lineEffectPrefab);
+        attackEffect.transform.position = Vector3.zero;
+        attackEffect.GetComponent<LineRenderer>().SetPosition(0, p1);
+        attackEffect.GetComponent<LineRenderer>().SetPosition(1, p2);
+        Destroy(attackEffect, 0.05f);
+    }
+    
+    private void SpawnHitEffect(Vector3 p1, Vector3 p2)
+    {
+        var vec = p1 - p2;
+        var hitPoint = p2 + vec.normalized * .6f;
+        hitPoint += Vector3.up;
+        var hitEffect = Instantiate(hitEffectPrefab);
+        hitEffect.transform.position = hitPoint;
+        GameObject.Destroy(hitEffect, 0.2f);
+    }
+}
+```
 
+## Monster
 
+```c#
+public class Monster : MonoBehaviour
+{
+    public CombatEntity combatEntity;
 
+    public Hero heroMono;
+    public Image healthBar;
+    public Text valueText;
 
+    private void Start()
+    {
+        combatEntity = MasterEntity.Instance.AddChild<CombatEntity>();
+        combatEntity.ListenActionPoint(ActionPointType.AfterReceiveDamage, OnReceiveDamage);
+    }
 
+    private void OnReceiveDamage(Entity actionExecution)
+    {
+        var damageActionExecution = actionExecution.As<DamageActionExecution>();
+        if (damageActionExecution == null) 
+            return;
+        var attr = combatEntity.GetComponent<AttributeComponent>();
+        var hpPct = attr.HealthPoint.Value / attr.HealthPointMax.Value;
+        healthBar.fillAmount = hpPct;
+        var damageText = Instantiate(valueText, valueText.transform.parent, false);
+        damageText.gameObject.SetActive(true);
+        damageText.text = $"-{damageActionExecution.Damage}";
+        damageText.color = Color.red;
+        Destroy(damageText.gameObject, 0.2f);
+    }
+}
+```
 
+## 场景
+
+![image-20230423223141803](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304232233699.png)
+
+![image-20230423223151334](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304232231366.png)
+
+## 测试
+
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月23日223233.mp4" controls=""></video>
 
 
 

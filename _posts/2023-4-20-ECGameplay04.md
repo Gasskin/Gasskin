@@ -33,97 +33,13 @@ tags: 战斗
 
 所以说，效果是基于能力的再一次抽象
 
-## EffectAssiginAction
-
-效果应用行为，应用效果的一个行为
-
-```c#
-namespace ECGameplay
-{
-    // 和其他行为能力没有区别
-    public class EffectAssignAction : Entity,IAction
-    {
-        public CombatEntity OwnerEntity
-        {
-            get => GetParent<CombatEntity>();
-            set { }
-        }
-        
-        public bool Enable { get; set; }
-
-        public bool TryMakeAction(out EffectAssignActionExecution action)
-        {
-            if (!Enable)
-            {
-                action = null;
-            }
-            else
-            {
-                action = OwnerEntity.AddChild<EffectAssignActionExecution>();
-                action.Action = this;
-                action.Creator = OwnerEntity;
-            }
-            return Enable;
-        }
-    }
-    
-    // 一个接口，所有实现了这个接口的Component，会作为效果触发Component
-    public interface IEffectTrigger
-    {
-        void OnTriggerApplyEffect(IActionExecution execution);
-    }
-    
-    public class EffectAssignActionExecution : Entity,IActionExecution
-    {
-        public IAction Action { get; set; }
-        public EffectAssignActionExecution EffectActionExecution { get; set; }
-
-        public CombatEntity Creator { get; set; }
-        
-        public CombatEntity Target { get; set; }
-        // 释放目标，不一定是CombatEntity，效果也可以对其他效果释放
-        public Entity AssignTarget { get; set; }
-
-        // 所属能力        
-        public IAbility OwnerAbility { get; set; }
-        // 后文解释，能力效果，一个能力可能有多个效果
-        public AbilityEffect AbilityEffect { get; set; }
-
-        public void AssignEffect()
-        {
-            // 可能是对其他战斗单位释放的，也可能不是
-            if (AssignTarget is CombatEntity combatEntity)
-            {
-                Target = combatEntity;
-            }
-            
-            foreach (var comp in AbilityEffect.Components.Values)
-            {
-                if (comp is IEffectTrigger trigger)
-                {
-                    trigger.OnTriggerApplyEffect(this);
-                }
-            }
-
-            Creator?.TriggerActionPoint(ActionPointType.AssignEffect, this);
-            Target?.TriggerActionPoint(ActionPointType.ReceiveEffect, this);
-            
-            FinishAction();
-        }
-        
-        public void FinishAction()
-        {
-            Destroy(this);
-        }
-    }
-}
-```
-
 ## AbilityEffectComponent
 
 能力效果组件，在Ability被创建的时候会添加
 
 同时会传入技能配表，一个技能会附有多个效果，每个效果都会创建一个AbilityEffect
+
+只是作为一个中转组件，本身没啥逻辑，即使没有这个类，我们也可以把所有信息存储在Ability里
 
 ```c#
 namespace ECGameplay
@@ -166,27 +82,21 @@ namespace ECGameplay
             }
         }
 
-        // 创建能力应用行为
-        public EffectAssignActionExecution CreateAssignActionByIndex(Entity targetEntity, int index)
+        // 应用某一个具体效果
+        public void AssignAbilityEffect(int index, IAbilityExecution execution)
         {
-            if (AbilityEffects.Count <= index)
-                return null;
-            return AbilityEffects[index].CreateAssignAction(targetEntity);;
+            if (AbilityEffects.Count <= index) 
+                return;
+            AbilityEffects[index].AssignEffect(execution);
         }
 
-        // 创建能力应用行为
-        public List<EffectAssignActionExecution> CreateAssignActions(Entity targetEntity)
+        // 应用这个能力上的所有效果
+        public void AssignAllAbilityEffect(IAbilityExecution execution)
         {
-            var list = new List<EffectAssignActionExecution>();
             foreach (var abilityEffect in AbilityEffects)
             {
-                var effectAssign = abilityEffect.CreateAssignAction(targetEntity);
-                if (effectAssign != null)
-                {
-                    list.Add(effectAssign);
-                }
+                abilityEffect.AssignEffect(execution);
             }
-            return list;
         }
     }
 }
@@ -196,9 +106,19 @@ namespace ECGameplay
 
 能力效果，诸如造成伤害啊，减速啊，等等
 
+其中IEffectComponent是需要Component实现的，用来标注这个Component是一个能力应用组件
+
+当然把所有逻辑都写在AbilityEffect里也是可以的，但是会让这个类变成一个超级类（非常复杂
+
 ```C#
 namespace ECGameplay
 {
+    public interface IEffectComponent
+    {
+        void OnApplyEffect(IAbilityExecution execution, AbilityEffect effect);
+    }
+
+   
     [DrawProperty]
     public class AbilityEffect : Entity
     {
@@ -216,11 +136,11 @@ namespace ECGameplay
             SkillEffectConfig = initData as SkillEffectConfig;
             if (SkillEffectConfig == null) 
                 return;
-            // 其实具体的逻辑还不在AbilityEffct内，会为每一种效果创建一种组件，具体的逻辑在组件内（当然直接写在这里也是可以的）
+            // 根据配表的不同，添加不同的组件
             switch (SkillEffectConfig.EffectType)
             {
                 case EffectType.Damage:
-                    AddComponent<EffectDamageComponent>();
+                    AddComponent<DamageEffectComponent>();
                     break;
                 case EffectType.Cure:
                     break;
@@ -250,16 +170,16 @@ namespace ECGameplay
             }
         }
 
-        // 创建效果应用执行体，具体创建还是在CombatEntity的行为能力上创建的
-        public EffectAssignActionExecution CreateAssignAction(Entity target)
+        // 应用效果的地方
+        public void AssignEffect(IAbilityExecution execution)
         {
-            if (OwnerAbility.OwnerEntity.EffectAssignAction.TryMakeAction(out var effectAssignActionExecution))
+            foreach (var comp in Components.Values)
             {
-                effectAssignActionExecution.AbilityEffect = this;
-                effectAssignActionExecution.AssignTarget = target;
+                if (comp is IEffectAssignComponent effectAssignComponent)
+                {
+                    effectAssignComponent.OnApplyEffect(execution, this);
+                }
             }
-
-            return effectAssignActionExecution;
         }
     }
 }
@@ -272,9 +192,10 @@ namespace ECGameplay
 仍然是一个逻辑中转，从CombatEntity的DamageAction里创建一个伤害行为
 
 ```c#
+
 namespace ECGameplay
 {
-    public class EffectDamageComponent : Component, IEffectTrigger
+	public class DamageEffectComponent : Component, IEffectComponent
     {
         public SkillEffectConfig SkillEffectConfig { get; set; }
 
@@ -283,15 +204,13 @@ namespace ECGameplay
             SkillEffectConfig = GetEntity<AbilityEffect>().SkillEffectConfig;
         }
 
-        public void OnTriggerApplyEffect(IActionExecution execution)
+        public void OnApplyEffect(IAbilityExecution execution, AbilityEffect effect)
         {
-            var effectActionExecution = (EffectAssignActionExecution)execution;
-            if (effectActionExecution == null) 
-                return;
+            var abilityExecution = (AttackAbilityExecution)execution;
             if (GetEntity<AbilityEffect>().OwnerAbility.OwnerEntity.DamageAction.TryMakeAction(out var actionExecution))
             {
-                actionExecution.Target = effectActionExecution.Target;
-                actionExecution.EffectActionExecution = effectActionExecution;
+                actionExecution.Target = abilityExecution.AttackActionExecution.Target;
+                actionExecution.AbilityEffect = effect;
                 actionExecution.ApplyDamage();
             }
         }
@@ -391,7 +310,7 @@ namespace ECGameplay
     public class DamageActionExecution : Entity, IActionExecution
     {
         public IAction Action { get; set; }
-        public EffectAssignActionExecution EffectActionExecution { get; set; }
+        public AbilityEffect AbilityEffect { get; set; }
         public CombatEntity Creator { get; set; }
         public CombatEntity Target { get; set; }
 
@@ -401,15 +320,21 @@ namespace ECGameplay
         {
             Creator?.TriggerActionPoint(ActionPointType.BeforeCauseDamage, this);
             Target?.TriggerActionPoint(ActionPointType.BeforeReceiveDamage, this);
-            
-            var skillEffectConfig = EffectActionExecution.AbilityEffect.SkillEffectConfig;
+
+            var skillEffectConfig = AbilityEffect.SkillEffectConfig;
             var attr = Creator?.GetComponent<AttributeComponent>();
-            if (attr == null || skillEffectConfig == null) 
+            if (attr == null || skillEffectConfig == null)
+            {
+                FinishAction();
                 return;
+            }
 
             // 没触发
             if (!MathUtil.PrizeDraw(skillEffectConfig.Probability))
+            {
+                FinishAction();
                 return;
+            }
             
             Damage = (float)ExpressionUtil.TryEvaluate(skillEffectConfig.ValueFormula, attr);
             var isCritical = MathUtil.PrizeDraw(attr.CriticalProbability.Value);
@@ -418,7 +343,6 @@ namespace ECGameplay
                 Damage *= attr.CriticalDamage.Value;
             }
             
-            // 接收伤害
             Target?.ReceiveDamage(this);
             
             Creator?.TriggerActionPoint(ActionPointType.AfterCauseDamage, this);

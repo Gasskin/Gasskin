@@ -9,177 +9,222 @@ tags: 战斗
 
 直接使用Luban，不多讲述了（略）
 
-## 效果类型
-
-后续还会添加，不再补充说明
-
-![image-20230422003654759](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220036825.png)
-
-## 技能表
-
-后续字段还会添加，不再补充说明
-
-![image-20230422003742126](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220037152.png)
-
-## 效果表
-
-后续字段还会添加，不再补充说明
-
-![image-20230422003814767](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220038795.png)
-
 # 效果
 
 效果依附于能力，比如普攻，最基础的普攻自带是带有伤害效果，但普攻还可以附带比如减速效果
 
 所以说，效果是基于能力的再一次抽象
 
-## AbilityEffectComponent
+万物皆效果，效果可以看做是一种BUFF，比如普攻会造成伤害，但我们的普攻不直接进行伤害结算，而是给目标添加一个效果BUFF，具体逻辑由BUFF去触发
 
-能力效果组件，在Ability被创建的时候会添加
+## EffectComponent
 
-同时会传入技能配表，一个技能会附有多个效果，每个效果都会创建一个AbilityEffect
-
-只是作为一个中转组件，本身没啥逻辑，即使没有这个类，我们也可以把所有信息存储在Ability里
+和我们的ActionPointComponent一样，本身没有太多复杂的逻辑，主要是为了集中处理Entity上的Effect
 
 ```c#
 namespace ECGameplay
 {
-    public class AbilityEffectComponent : Component
+    public class EffectComponent : Component
     {
-        /// 默认不激活
-        public override bool DefaultEnable { get; set; } = false;
+        public CombatEntity OwnerEntity => Entity.As<CombatEntity>();
+		// 所有的Effect字典
+        public Dictionary<int,List<EffectAbility>> Id2Effects { get; set; } = new Dictionary<int, List<EffectAbility>>();
 
-        /// 效果列表，一个能力可以有多个效果
-        public List<AbilityEffect> AbilityEffects { get; set; } = new List<AbilityEffect>();
-
-        public override void Awake(object initData)
+        // 添加一个Effect
+        public EffectAbility AttachEffect(EffectConfig effectConfig)
         {
-            // 技能配表
-            if (initData is SkillConfig skillConfig)
+            var effect = OwnerEntity.AddChild<EffectAbility>(effectConfig);
+            if (!Id2Effects.ContainsKey(effectConfig.Id))
             {
-                // 创建该技能的所有效果
-                foreach (var skillEffect in skillConfig.AttachEffect_Ref)
-                {
-                    var abilityEffect = Entity.AddChild<AbilityEffect>(skillEffect);
-                    AbilityEffects.Add(abilityEffect);
-                }
+                Id2Effects.Add(effectConfig.Id,new List<EffectAbility>());
             }
+            Id2Effects[effectConfig.Id].Add(effect);
+            return effect;
         }
 
-        public override void OnEnable()
+        // 销毁一个Effect
+        public void RemoveEffect(EffectAbility effect)
         {
-            foreach (var abilityEffect in AbilityEffects)
+            var id = effect.EffectConfig.Id;
+            if (Id2Effects.TryGetValue(id,out var list))
             {
-                abilityEffect.EnableEffect();
+                list.Remove(effect);
+                Entity.Destroy(effect);
             }
         }
-
-        public override void OnDisable()
+        
+        public bool TryGetEffect(int id,out EffectAbility effect)
         {
-            foreach (var abilityEffect in AbilityEffects)
+            effect = null;
+            if (Id2Effects.TryGetValue(id,out var list) && list.Count > 0)
             {
-                abilityEffect.DisableEffect();
+                effect = list[0];
+                return true;
             }
-        }
-
-        // 应用某一个具体效果
-        public void AssignAbilityEffect(int index, IAbilityExecution execution)
-        {
-            if (AbilityEffects.Count <= index) 
-                return;
-            AbilityEffects[index].AssignEffect(execution);
-        }
-
-        // 应用这个能力上的所有效果
-        public void AssignAllAbilityEffect(IAbilityExecution execution)
-        {
-            foreach (var abilityEffect in AbilityEffects)
-            {
-                abilityEffect.AssignEffect(execution);
-            }
+            return false;
         }
     }
 }
 ```
 
-## AbililtyEffect
+然后CombatEntity再做一些封装
 
-能力效果，诸如造成伤害啊，减速啊，等等
+```c#
+public EffectAbility AttachEffect(int id)
+{
+    return GetComponent<EffectComponent>().AttachEffect(TableUtil.Tables.EffectTable[id]);
+}
 
-其中IEffectComponent是需要Component实现的，用来标注这个Component是一个能力应用组件
+public void RemoveEffect(EffectAbility effect)
+{
+    GetComponent<EffectComponent>().RemoveEffect(effect);
+}
+```
 
-当然把所有逻辑都写在AbilityEffect里也是可以的，但是会让这个类变成一个超级类（非常复杂
+## AddEffectAction
 
-```C#
+添加效果的行为
+
+```c#
+namespace ECGameplay
+{
+    public class AddEffectAction: Entity, IAction
+    {
+        public CombatEntity OwnerEntity
+        {
+            get=>GetParent<CombatEntity>() ;
+            set{}
+        }
+        
+        public bool Enable { get; set; }
+
+        public bool TryMakeAction(out AddEffectActionExecution actionExecution)
+        {
+            if (!Enable)
+            {
+                actionExecution= null;
+            }
+            else
+            {
+                actionExecution = OwnerEntity.AddChild<AddEffectActionExecution>();
+                actionExecution.Action = this;
+                actionExecution.Creator = OwnerEntity;
+            }
+            return Enable;
+        }
+    }
+
+
+    public class AddEffectActionExecution : Entity, IActionExecution
+    {
+        public IAction Action { get; set; }
+        public CombatEntity Creator { get; set; }
+        public CombatEntity Target { get; set; }
+
+        public EffectConfig EffectConfig { get; set; }
+
+        public EffectAbility Effect { get; set; }
+        
+        public void AddEffect()
+        {
+            // 根据配表判断Effect是否可以叠加
+            if (!EffectConfig.CanStack)
+            {
+                if (Target.GetComponent<EffectComponent>().TryGetEffect(EffectConfig.Id,out var effect))
+                {
+                    effect.Reset();
+                    return;
+                }
+            }
+
+            // 根据Effect的作用目标，给不同目标添加Effect
+            switch (EffectConfig.EffectTarget)
+            {
+                case EffectTarget.Target:
+                    Effect = Target.AttachEffect(EffectConfig.Id);
+                    break;
+                case EffectTarget.Self:
+                    Effect = Creator.AttachEffect(EffectConfig.Id);
+                    break;
+            }
+
+            Effect.AddEffectActionExecution = this;
+            Effect.ActivateAbility();
+            
+            Creator?.TriggerActionPoint(ActionPointType.AfterGiveEffect, this);
+            Target?.TriggerActionPoint(ActionPointType.AfterReceiveEffect, this);   
+            
+            FinishAction();
+        }
+        
+        public void FinishAction()
+        {
+            Destroy(this);
+        }
+    }
+}
+```
+
+## EffectAbility
+
+效果能力，主要存储Effect的配表信息，以及添加具体逻辑的Component
+
+```c#
 namespace ECGameplay
 {
     public interface IEffectComponent
     {
-        void OnApplyEffect(IAbilityExecution execution, AbilityEffect effect);
+        public void Reset();
     }
 
-   
-    [DrawProperty]
-    public class AbilityEffect : Entity
+    public class EffectAbility : Entity
     {
-        public bool Enable { get; set; }
-
-        /// 持有能力效果的Entity，自然是能力本身
-        public IAbility OwnerAbility => Parent as IAbility;
-
-        /// 效果配表
-        public SkillEffectConfig SkillEffectConfig { get; set; }
-
+        public CombatEntity OwnerEntity
+        {
+            get=> Parent.As<CombatEntity>(); 
+            set{}
+        }
+        public EffectConfig EffectConfig { get; set; }
+        public AddEffectActionExecution AddEffectActionExecution { get; set; }
+        public Component EffectComponent { get; set; }
 
         public override void Awake(object initData)
         {
-            SkillEffectConfig = initData as SkillEffectConfig;
-            if (SkillEffectConfig == null) 
+            EffectConfig = initData as EffectConfig;
+
+            if (EffectConfig == null)
                 return;
-            // 根据配表的不同，添加不同的组件
-            switch (SkillEffectConfig.EffectType)
+
+            // 根据配置，添加不同的组件，具体的逻辑再组件内
+            switch (EffectConfig.EffectType)
             {
                 case EffectType.Damage:
-                    AddComponent<DamageEffectComponent>();
+                    EffectComponent = AddComponent<EffectDamageComponent>();
                     break;
                 case EffectType.Cure:
+                    EffectComponent = AddComponent<EffectCureComponent>();
                     break;
             }
         }
 
-        public override void OnDestroy()
+        public void ActivateAbility()
         {
-            DisableEffect();
+            EffectComponent.Enable = true;
         }
 
-        public void EnableEffect()
+        public void DeactivateAbility()
         {
-            Enable = true;
-            foreach (var comp in Components.Values)
-            {
-                comp.Enable = true;
-            }
+            EffectComponent.Enable = false;
+        }
+        
+        public void EndAbility()
+        {
+            OwnerEntity.RemoveEffect(this);
         }
 
-        public void DisableEffect()
+        public void Reset()
         {
-            Enable = false;
-            foreach (var comp in Components.Values)
-            {
-                comp.Enable = false;
-            }
-        }
-
-        // 应用效果的地方
-        public void AssignEffect(IAbilityExecution execution)
-        {
-            foreach (var comp in Components.Values)
-            {
-                if (comp is IEffectAssignComponent effectAssignComponent)
-                {
-                    effectAssignComponent.OnApplyEffect(execution, this);
-                }
-            }
+            (EffectComponent as IEffectComponent)?.Reset();
         }
     }
 }
@@ -187,30 +232,59 @@ namespace ECGameplay
 
 ### EffectDamageComponent
 
-一个伤害效果组件的，需要实现IEffectTrigger接口
-
-仍然是一个逻辑中转，从CombatEntity的DamageAction里创建一个伤害行为
+伤害效果组件
 
 ```c#
-
 namespace ECGameplay
 {
-	public class DamageEffectComponent : Component, IEffectComponent
+    public class EffectDamageComponent : Component, IEffectComponent
     {
-        public SkillEffectConfig SkillEffectConfig { get; set; }
+        // 默认是不激活的
+        public override bool DefaultEnable { get; set; } = false;
 
-        public override void Awake()
+        private EffectAbility EffectAbility => Entity.As<EffectAbility>();
+        private IGameTimer Timer { get; set; }
+
+        // 激活时触发
+        public override void OnEnable()
         {
-            SkillEffectConfig = GetEntity<AbilityEffect>().SkillEffectConfig;
+            // 根据不同的类型触发不同的逻辑
+            switch (EffectAbility.EffectConfig.EffectTiming)
+            {
+                case EffectTiming.Immediate:
+                    ApplyDamage();
+                    EffectAbility.EndAbility();
+                    break;
+                case EffectTiming.Duration:
+                    break;
+                case EffectTiming.Interval:
+                    Timer = new IntervalTimer(EffectAbility.EffectConfig.Duration / 1000f,
+                        EffectAbility.EffectConfig.Interval / 1000f, ApplyDamage, EffectAbility.EndAbility);
+                    break;
+            }
         }
 
-        public void OnApplyEffect(IAbilityExecution execution, AbilityEffect effect)
+        public override void OnDisable()
         {
-            var abilityExecution = (AttackAbilityExecution)execution;
-            if (GetEntity<AbilityEffect>().OwnerAbility.OwnerEntity.DamageAction.TryMakeAction(out var actionExecution))
+            Debug.LogError("伤害结束");
+        }
+
+        public override void Update()
+        {
+            Timer?.Update(Time.deltaTime);
+        }
+
+        public void Reset()
+        {
+        }
+
+        // 最终还是调用伤害行为
+        private void ApplyDamage()
+        {
+            if (EffectAbility.AddEffectActionExecution.Creator.DamageAction.TryMakeAction(out var actionExecution))
             {
-                actionExecution.Target = abilityExecution.AttackActionExecution.Target;
-                actionExecution.AbilityEffect = effect;
+                actionExecution.Target = EffectAbility.OwnerEntity;
+                actionExecution.EffectAbility = EffectAbility;
                 actionExecution.ApplyDamage();
             }
         }
@@ -218,62 +292,56 @@ namespace ECGameplay
 }
 ```
 
-## 公式解析
+# IGameTimer
 
-用于把一串string解析成一个数学公式，支持括号嵌套
+一个接口，效果执行期间可能需要各种时间判断（比如循环，倒计时结束）
 
-```C#
-namespace ECGamePlay
+继承这个接口实现自己的Timer
+
+```c#
+public interface IGameTimer
 {
-    public class ExpressionUtil
-    {
-        private static ExpressionParser ExpressionParser { get; set; } = new ExpressionParser();
-
-
-        public static double TryEvaluate(string expressionStr, AttributeComponent attr)
-        {
-            Expression expression = null;
-            try
-            {
-                expression = ExpressionParser.EvaluateExpression(expressionStr);
-                if (expression.Parameters.ContainsKey("攻击力"))
-                {
-                    expression.Parameters["攻击力"].Value = attr.Attack.Value;
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError(expressionStr);
-                Debug.LogError(e);
-            }
-            if (expression == null)
-                return 0;
-            return expression.Value;
-        }
-    }
+    public bool IsFinish { get; }
+    public void Update(float delta);
+    public void Reset();
 }
 ```
 
-其中`ExpressionParser`是引入的一个库，源码就不放了，作用如下
+比如倒计时Timer，会在倒计时结束时触发回调
 
 ```c#
-var test = ExpressionUtil.TryEvaluate("(攻击力1+100)*2+攻击力1+攻击力2");
+public class DurationTimer : IGameTimer
+{
+    public bool IsFinish => time >= maxTime;
+    private Action action;
+    private readonly float maxTime;
+    private float time;
+
+    public DurationTimer(float maxTime, Action action)
+    {
+        this.maxTime = maxTime;
+        this.action = action;
+        time = 0;
+    }
+
+    public void Update(float delta)
+    {
+        if (!IsFinish)
+        {
+            time += delta;
+            if (IsFinish)
+            {
+                action?.Invoke();
+            }
+        }
+    }
+
+    public void Reset()
+    {
+        time = 0;
+    }
+}
 ```
-
-![image-20230422001436088](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220014117.png)
-
-然后可以
-
-```c#
-test.Parameters["攻击力1"].Value = 100;
-test.Parameters["攻击力2"].Value = 200;
-Debug.Log(test.Value);
-```
-
-![image-20230422001615501](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220016521.png)
-
-当然，这里面的字符串，如何和我们的属性对应，则需要代码写死了，没有太好的办法
-
 # DamageAction
 
 伤害行为，真正进行伤害计算的地方
@@ -377,63 +445,59 @@ namespace ECGameplay
 }
 ```
 
-# 测试
+# 公式解析
 
-需要给CombatEntity添加以上新增的能力和行为
 
-![image-20230423002231195](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230022229.png)
+```c#
+namespace ECGamePlay
+{
+    public class ExpressionUtil
+    {
+        private static ExpressionParser ExpressionParser { get; set; } = new ExpressionParser();   
+        public static double 			
+            
+        TryEvaluate(string expressionStr, AttributeComponent attr)
+    	{
+            Expression expression = null;
+            try
+            {
+                expression = ExpressionParser.EvaluateExpression(expressionStr);
+                if (expression.Parameters.ContainsKey("攻击力"))
+                {
+                    expression.Parameters["攻击力"].Value = attr.Attack.Value;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError(expressionStr);
+                Debug.LogError(e);
+            }
+            if (expression == null)
+                return 0;
+            return expression.Value;
+    	}
+    }
+}
+```
+其中`ExpressionParser`是引入的一个库，源码就不放了，作用如下
 
-为什么会有两次伤害呢？
+```c#
+var test = ExpressionUtil.TryEvaluate("(攻击力1+100)*2+攻击力1+攻击力2");
+```
 
-因为配表里给这个技能添加了两个效果
+![image-20230422001436088](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220014117.png)
 
-编辑器结构如下
+然后可以
 
-![image-20230423002326125](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230023157.png)
+```c#
+test.Parameters["攻击力1"].Value = 100;
+test.Parameters["攻击力2"].Value = 200;
+Debug.Log(test.Value);
+```
 
-![image-20230423002336682](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230023713.png)
+![image-20230422001615501](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304220016521.png)
 
-# 流程解析
-
-以普攻为例，解析整个框架的运行流程
-
-## 各组件的关系
-
-### CombatEntity
-
-仅仅是对于战斗Entity的总结，自身没有什么特殊逻辑
-
-![image-20230423003016412](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230030445.png)
-
-### Action
-
-极其简单的Action，比如格挡，所有逻辑都会直接写在Action里
-
-但是大多数Action会有对应的执行体
-
-执行体是进行逻辑运算的地方，并不一定会调用Ability
-
-![image-20230423004547452](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230045484.png)
-
-### Ablity
-
-一定会有对应的能力执行体
-
-并且每一个能力都会附有一个或者多个AbilityEffect
-
-AbilityEffect由AbilityEffectComponent添加
-
-![image-20230423005848299](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230058326.png)
-
-### AbilityEffect
-
-能力效果，本身没有啥逻辑，会根据不同的效果，去调用CombatEntity里的不同行为
-
-![image-20230423010008990](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304230100013.png)
-
-## 生命周期
-
-![image-20230423221806771](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304232218865.png)
+当然，这里面的字符串，如何和我们的属性对应，则需要代码写死了，没有太好的办法
 
 # 简单Demo
 
@@ -535,84 +599,29 @@ public class Monster : MonoBehaviour
 
 ![image-20230423223151334](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304232231366.png)
 
-## 测试
+# 测试
 
-<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月23日223233.mp4" controls=""></video>
+增加一个配置
 
-# 状态
+![image-20230425223926982](https://cdn.jsdelivr.net/gh/Gasskin/CloudImg/img/202304252239029.png)
 
-也是一种效果，不过拥有自己的生命周期，简单划分三种状态
+进行攻击
 
-- **属性修饰** 提升/降低某个属性
-- **行为禁止** 比如眩晕，沉默
-- **逻辑触发** 比如几秒后，生命值低于多少后，等等等等
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月25日224014.mp4" controls=""></video>
 
-## 计时器
+# 技能
 
-### GameTimer
+技能所需要东西大多已经写好，但是还差一些检测
 
-一个简单计时器，本身不能Update，需要Component去Update
+## SelectManager
 
-```c#
-namespace ECGameplay
-{
-    public class GameTimer
-    {
-        private float maxTime;
-        private float time;
-        private Action action;
+一个C#类，和框架无关，用于目标选择，简单写一下，Moba常见的技能选择有三种
 
-        public bool IsFinished => time >= maxTime;
-        public bool IsRunning => time < maxTime;
+指定目标、指定范围、自定义逻辑（比如剑圣的Q）
 
-        public float MaxTime
-        {
-            get => maxTime;
-            set => maxTime = value;
-        }
 
-        public GameTimer(float maxTime,Action action)
-        {
-            if (maxTime <= 0)
-                throw new Exception($"_maxTime can not be 0 or negative");
-            this.maxTime = maxTime;
-            this.action = action;
-            time = 0f;
-        }
 
-        public void Reset()
-        {
-            time = 0f;
-        }
 
-        public void UpdateAsFinish(float delta)
-        {
-            if (!IsFinished)
-            {
-                time += delta;
-                if (IsFinished)
-                {
-                    action?.Invoke();
-                }
-            }
-        }
-
-        public void UpdateAsRepeat(float delta)
-        {
-            if (delta > maxTime)
-                throw new Exception($"_maxTime too small, delta:{delta} > _maxTime:{maxTime}");
-            time += delta;
-            while (time >= maxTime)
-            {
-                time -= maxTime;
-                action?.Invoke();
-            }
-        }
-    }
-}
-```
-
-## Action
 
 
 

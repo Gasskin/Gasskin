@@ -609,23 +609,186 @@ public class Monster : MonoBehaviour
 
 <video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月25日224014.mp4" controls=""></video>
 
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月27日224914.mp4" controls=""></video>
+
 # 技能
 
-技能所需要东西大多已经写好，但是还差一些检测
+其实普攻也被我们作为技能来写了，不过普攻比较特殊
 
-## SelectManager
+## SpellSkillAction
 
-一个C#类，和框架无关，用于目标选择，简单写一下，Moba常见的技能选择有三种
+释放技能行为
 
-指定目标、指定范围、自定义逻辑（比如剑圣的Q）
+```c#
+namespace ECGameplay
+{
+    public class SkillSpellAction : Entity, IAction
+    {
+        public CombatEntity OwnerEntity {get => GetParent<CombatEntity>();set{}}
+        public bool Enable { get; set; }
 
+        public bool TryMakeAction(out SkillSpellActionExecution actionExecution)
+        {
+            if (!Enable)
+            {
+                actionExecution = null;
+            }
+            else
+            {
+                actionExecution = new SkillSpellActionExecution();
+                actionExecution.Action = this;
+                actionExecution.Creator = OwnerEntity;
+            }
+            return Enable;
+        }
+    }
 
+    public class SkillSpellActionExecution : Entity, IActionExecution
+    {
+        public IAction Action { get; set; }
+        public CombatEntity Creator { get; set; }
+        // 技能可能是指定目标，也可能是指定方向，也可能是多个目标
+        public CombatEntity Target { get; set; }
+        public List<Component> Targets { get; set; } = new List<Component>();
+        public Vector3 Point { get; set; }
 
+        public SkillAbilityExecution SkillAbilityExecution { get; set; }
+        public SkillAbility SkillAbility { get; set; }
+        
 
+        public void SpellSkill()
+        {
+            Creator.TriggerActionPoint(ActionPointType.BeforeSpell, this);
+            
+            SkillAbilityExecution = SkillAbility.CreateExecution() as SkillAbilityExecution;
+            SkillAbilityExecution.ActionExecution = this;
+            SkillAbilityExecution.BeginExecute();
+        }
+        
+        public void FinishAction()
+        {
+            Creator.TriggerActionPoint(ActionPointType.AfterSpell, this);
+            Destroy(this);
+        }
+    }
+}
+```
 
+## SkillAbility
 
+技能能力
 
+```c#
+using System.Collections.Generic;
+using cfg.Skill;
 
+namespace ECGameplay
+{
+    public class SkillAbility : Entity, IAbility
+    {
+        public CombatEntity OwnerEntity
+        {
+            get => GetParent<CombatEntity>();
+            set { }
+        }
+        
+        public bool Enable { get; set; }
+
+        public SkillConfig SkillConfig { get; set; }
+
+        public override void Awake(object initData)
+        {
+            SkillConfig = initData as SkillConfig;
+        }
+
+        public void TryActivateAbility()
+        {
+        }
+
+        public void ActivateAbility()
+        {
+        }
+
+        public void DeactivateAbility()
+        {
+        }
+
+        public void EndAbility()
+        {
+        }
+
+        public Entity CreateExecution()
+        {
+            var execution = OwnerEntity.AddChild<SkillAbilityExecution>(this);
+            execution.Ability = this;
+            execution.OwnerEntity = OwnerEntity;
+            return execution;
+        }
+    }
+
+    public class SkillAbilityExecution : Entity, IAbilityExecution
+    {
+        public IAbility Ability { get; set; }
+        public CombatEntity OwnerEntity { get; set; }
+        public IActionExecution ActionExecution { get; set; }
+
+        public void BeginExecute()
+        {
+        }
+
+        public void EndExecute()
+        {
+        }
+    }
+}
+```
+
+## SpellSkillComponent
+
+添加一个释放技能的组件，集中一下逻辑，两种释放技能的方式，其中范围技能都通过Point实现，内置了朝向
+
+```c#
+namespace ECGameplay
+{
+    public class SpellSkillComponent : Component
+    {
+        private CombatEntity CombatEntity => GetEntity<CombatEntity>();
+        public override bool DefaultEnable { get; set; } = true;
+        
+        public void SpellWithTarget(SkillAbility spellSkill, CombatEntity targetEntity)
+        {
+            if (CombatEntity.SkillAbility != null)
+                return;
+
+            if (CombatEntity.SkillSpellAction.TryMakeAction(out var actionExecution))
+            {
+                actionExecution.SkillAbility = spellSkill;
+                actionExecution.Target = targetEntity;
+                actionExecution.Point = targetEntity.Position;
+                spellSkill.OwnerEntity.Rotation 
+                    = Quaternion.LookRotation(targetEntity.Position - spellSkill.OwnerEntity.Position);
+                actionExecution.InputDirection = spellSkill.OwnerEntity.Rotation.eulerAngles.y;
+                actionExecution.SpellSkill();
+            }
+        }
+
+        public void SpellWithPoint(SkillAbility spellSkill, Vector3 point)
+        {
+            if (CombatEntity.SkillAbility != null)
+                return;
+
+            if (CombatEntity.SkillSpellAction.TryMakeAction(out var actionExecution))
+            {
+                actionExecution.SkillAbility = spellSkill;
+                actionExecution.Point = point;
+                spellSkill.OwnerEntity.Rotation = Quaternion.LookRotation(point - spellSkill.OwnerEntity.Position);
+                actionExecution.InputDirection = spellSkill.OwnerEntity.Rotation.eulerAngles.y;
+                actionExecution.SpellSkill();
+            }
+        }
+    }
+}
+```
 
 
 

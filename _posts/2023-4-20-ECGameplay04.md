@@ -1,5 +1,5 @@
 ---
-title: "ECGameplay04 效果和状态"
+title: "ECGameplay|04 效果和状态"
 tags: 战斗
 ---
 

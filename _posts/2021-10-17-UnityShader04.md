@@ -1,6 +1,6 @@
 ---
-title: "04 基础纹理"
-tags: UnityShader
+title: "入门精要|04 基础纹理"
+tags: 图形学
 ---
 
 ### 单张纹理

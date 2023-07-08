@@ -1,6 +1,6 @@
 ---
-title: "01 图形学基础01"
-tags: UnityShader
+title: "入门精要|01 图形学基础01"
+tags: 图形学
 ---
 
 ### 线性代数基础

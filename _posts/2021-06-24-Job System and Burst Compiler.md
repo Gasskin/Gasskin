@@ -1,6 +1,6 @@
 ---
-title: "Job System and Burst Compiler"
-tags: Unity模块学习
+title: "Job System"
+tags: Unity模块
 ---
 
 ### 前言

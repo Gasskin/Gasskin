@@ -1,6 +1,6 @@
 ---
-title: "05 透明效果"
-tags: UnityShader
+title: "入门精要|05 透明效果"
+tags: 图形学
 ---
 
 - **深度测试**

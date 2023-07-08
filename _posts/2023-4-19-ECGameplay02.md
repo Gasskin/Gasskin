@@ -1,5 +1,5 @@
 ---
-title: "ECGameplay02 数值系统"
+title: "ECGameplay|02 数值系统"
 tags: 战斗
 ---
 

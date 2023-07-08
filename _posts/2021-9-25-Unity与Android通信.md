@@ -1,6 +1,6 @@
 ---
 title: "Unity与Android通信"
-tags: SDK接入相关
+tags: SDK
 ---
 
 ### 前言

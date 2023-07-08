@@ -1,6 +1,6 @@
 ---
-title: "03 基础光照"
-tags: UnityShader
+title: "入门精要|03 基础光照"
+tags: 图形学
 ---
 
 ### 环境光 

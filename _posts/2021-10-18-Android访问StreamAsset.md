@@ -1,6 +1,6 @@
 ---
 title: "Android访问StreamAsset"
-tags: SDK接入相关
+tags: SDK
 ---
 
 安卓平台下JAR包变成了压缩包，直接通过File来读取StreamAsset下的文件是不行的

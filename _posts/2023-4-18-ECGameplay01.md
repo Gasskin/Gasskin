@@ -1,5 +1,5 @@
 ---
-title: "ECGameplay01 组件式编程"
+title: "ECGameplay|01 组件式编程"
 tags: 战斗
 ---
 

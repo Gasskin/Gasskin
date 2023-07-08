@@ -1,6 +1,6 @@
 ---
-title: "Rigidbody"
-tags: 物理系统
+title: "Rigidbody记录"
+tags: 物理
 ---
 
 # ForceMode

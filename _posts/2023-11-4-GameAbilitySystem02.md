@@ -38,6 +38,8 @@ namespace GameAbilitySystem
 
 具体就可以有这样一些属性
 
+
+
 ![image-20231113164313190](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131643213.png)
 
 你可以看到，他确实只是一个标签，代表玩家有这样一个属性
@@ -160,4 +162,193 @@ namespace GameAbilitySystem
 ![image-20231113165314791](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131653818.png)
 
 这个事件触发器针对的就是生命值改变
+
+# AttributeSystemComponent
+
+上面说了很多东西，但始终没有一个”触发中心“，而这个组件，就是整个属性系统的数据中心，负责更新属性，派发事件
+
+先来看看它的基础字段有哪些，其实很简单，只有几部分
+
+- 有哪些属性事件触发器？
+
+- 有哪些属性？这些属性的值是什么？
+- 属性的缓存，上一帧的属性缓存
+
+```c#
+namespace GameAbilitySystem
+{
+    /// <summary>
+    /// 属性系统
+    /// </summary>
+    public class AttributeSystemComponent : MonoBehaviour
+    {
+        [SerializeField] [LabelText("属性事件")] 
+        private List<BaseAttributeEventHandler> attributeSystemEvents;
+
+        [SerializeField] [LabelText("属性")] 
+        private List<GameAttribute> attributes;
+
+        [SerializeField] [LabelText("属性值")]
+        private List<GameAttributeValue> attributeValues;
+
+        /// 标记属性为脏时，会重置属性缓存
+        private bool isAttributeDirty = false;
+        public readonly Dictionary<GameAttribute, int> attributeCache = new();
+
+        private readonly List<GameAttributeValue> preAttributeValues = new();
+    }
+}
+```
+
+再看生命周期
+
+```c#
+namespace GameAbilitySystem
+{
+    /// <summary>
+    /// 属性系统
+    /// </summary>
+    public class AttributeSystemComponent : MonoBehaviour
+    {
+        private void Awake()
+        {
+            InitialiseAttributeValues();
+            MarkAttributeDirty();
+            GetAttributeCache();
+        }
+        
+        // 初始化属性值，就是给每一个属性都生成了一个对应的属性值，并且把修饰器置为空
+        private void InitialiseAttributeValues()
+        {
+            attributeValues = new List<GameAttributeValue>();
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                attributeValues.Add(new GameAttributeValue()
+                    {
+                        attribute = attributes[i],
+                        modifier = new GameAttributeModifier()
+                        {
+                            add = 0f,
+                            multiply = 0f,
+                            overwrite = 0f
+                        }
+                    }
+                );
+            }
+        }
+        
+        // 标记属性为脏
+        public void MarkAttributeDirty()
+        {
+            isAttributeDirty = true;
+        }
+        
+        // 缓存属性值，只有当属性标记为脏时，才会重置更新
+        private Dictionary<GameAttribute, int> GetAttributeCache()
+        {
+            if (isAttributeDirty)
+            {
+                attributeCache.Clear();
+                for (var i = 0; i < attributeValues.Count; i++)
+                {
+                    attributeCache.Add(attributeValues[i].attribute, i);
+                }
+
+                isAttributeDirty = false;
+            }
+
+            return attributeCache;
+        }        
+
+        // 在LateUpdate中更新当前属性值
+        private void LateUpdate()
+        {
+            UpdateAttributeCurrentValues();
+        }
+
+        private void UpdateAttributeCurrentValues()
+        {
+            preAttributeValues.Clear();
+            // 遍历所有属性值，先把当前帧的值缓存下来，然后调用虚方法计算当前属性值
+            for (var i = 0; i < attributeValues.Count; i++)
+            {
+                var attr = attributeValues[i];
+                preAttributeValues.Add(attr);
+                attributeValues[i] = attr.attribute.CalculateCurrentAttributeValue(attr, attributeValues);
+            }
+
+            // 派发属性事件
+            for (var i = 0; i < attributeSystemEvents.Count; i++)
+            {
+                attributeSystemEvents[i].PreAttributeChange(this, preAttributeValues, ref attributeValues);
+            }
+        }
+    }
+}
+```
+
+大致效果是这样的
+
+![image-20231113171846075](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131718118.png)
+
+# 更复杂的属性
+
+回到最初的GameAttribute，你会发现，**CalculateCurrentAttributeValue**是一个虚方法，所以你是可以重写计算数值的逻辑的，这里可以高度自定义
+
+比如，我们可以简单实现一个二级属性的逻辑
+
+> 二级属性？比如：生命值=100*力量，这里的力量就是一级属性，生命值就是二级属性，100则代表一个规格（后文详说）
+
+```c#
+namespace GameAbilitySystem
+{
+    /// <summary>
+    /// 二级属性，比如角色的生命值是基于他的力量的，那么生命值就是一个二级属性二级属性，需要有他的一级属性，和计算规则
+    /// </summary>
+    [CreateAssetMenu(menuName = "GameAbilitySystem/Linear Derived Attribute")]
+    public class LinearDerivedGameAttribute : GameAttribute
+    {
+        [LabelText("目标属性")]
+        public GameAttribute Attribute;
+        [LabelText("倍率")]
+        [SerializeField] private float gradient;
+        [LabelText("偏移")]
+        [SerializeField] private float offset;
+
+        public override GameAttributeValue CalculateCurrentAttributeValue(GameAttributeValue gameAttributeValue, List<GameAttributeValue> allAttributeValues)
+        {
+            // 找到目标一级属性
+            var baseAttributeValue = allAttributeValues.Find(x => x.attribute == Attribute);
+
+            // 基础值=一级属性*倍率+偏移
+            gameAttributeValue.baseValue = (baseAttributeValue.currentValue * gradient) + offset;
+
+            // 当前值
+            gameAttributeValue.currentValue = (gameAttributeValue.baseValue + gameAttributeValue.modifier.add) * (gameAttributeValue.modifier.multiply + 1);
+
+            if (gameAttributeValue.modifier.overwrite != 0)
+            {
+                gameAttributeValue.currentValue = gameAttributeValue.modifier.overwrite;
+            }
+            return gameAttributeValue;
+        }
+    }
+}
+```
+
+那可以有这些二级属性
+
+![image-20231113172817783](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131728819.png)
+
+![image-20231113172825144](C:\Users\jiawei.liu\AppData\Roaming\Typora\typora-user-images\image-20231113172825144.png)
+
+
+
+
+
+
+
+
+
+
 

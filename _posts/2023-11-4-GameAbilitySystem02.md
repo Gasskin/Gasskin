@@ -1,63 +1,163 @@
 ---
-title: "GameAbilitySystem|01 Tag 游戏标签"
+title: "GameAbilitySystem|01 GameAttribute 属性"
 tags: 战斗
 ---
 
-Tag，是一个纯标记位，自身不带有任何逻辑
+# GameAttribute
+
+![image-20231113164250605](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131642631.png)
+
+属性标签，仅仅是一个标签，没有具体的数值
 
 ```c#
 namespace GameAbilitySystem
 {
     /// <summary>
-    /// 游戏标签，通过父子标签实现的一种树状结构，仅标记，没有逻辑也没有数据
+    /// 不包含任何数据，仅仅是一个标记
     /// </summary>
-    [CreateAssetMenu(menuName = "GameAbilitySystem/Tag")]
-    public class GameTag : ScriptableObject
+    [CreateAssetMenu(menuName = "GameAbilitySystem/Attribute")]
+    public class GameAttribute : ScriptableObject
     {
-        [SerializeField]
-        private GameTag parent;
-        
-        /// <summary>
-        /// 是否是另一个标签的孩子
-        /// </summary>
-        /// <param name="other">另一个标签</param>
-        /// <param name="depth">深度</param>
-        /// <returns></returns>
-        public bool IsDescendantOf(GameTag other, int depth = 8)
+        public string name;
+
+        /// 用于计算当前这个一级属性的具体数值， 这个类本身只是一种标签，具体的数值，肯定是要结合具体情况计算的，而具体的情况，则是放入GameAttributeValue这个类中
+        public virtual GameAttributeValue CalculateCurrentAttributeValue(GameAttributeValue gameAttributeValue, List<GameAttributeValue> allAttributeValues)
         {
-            if (this == other)
-                return true;
-            
-            int i = 0;
-            var tag = parent;
-            while (depth > i++)
+            gameAttributeValue.currentValue = (gameAttributeValue.baseValue + gameAttributeValue.modifier.add) * (gameAttributeValue.modifier.multiply + 1);
+
+            if (gameAttributeValue.modifier.overwrite != 0)
             {
-                if (!tag) 
-                    return false;
-
-                if (tag == other) 
-                    return true;
-
-                tag = tag.parent;
+                gameAttributeValue.currentValue = gameAttributeValue.modifier.overwrite;
             }
-            return false;
+
+            return gameAttributeValue;
         }
     }
 }
 ```
 
-标签是链式父子结果，一个标签可以有他的父标签，也可以通过接口判断某个标签是否是另一个标签的子节点
+具体就可以有这样一些属性
 
-这有什么用呢？
+![image-20231113164313190](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131643213.png)
 
-举例来说，燃烧可以是一个标签，**Burning**，当然他可以有一个父标签，比如是**Debuff**
+你可以看到，他确实只是一个标签，代表玩家有这样一个属性
 
-这很好理解，燃烧是异常状态下的一个子项，异常状态还可以有其他很多子项
+![image-20231113164338447](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131643476.png)
 
-![image-20231113113016271](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131130336.png)
+# GameAttributeValue
 
-此时如果有一个技能需要清除所有的异常状态，那只需要筛选父标签**Debuff**即可
+属性值，真正存储属性数值的地方，当然，你看到了，这仅仅是一个数值容器，他本身不会去计算数值，而是反过来，我们会有一个类去计算数值，然后把数值存到这儿
 
-当然标签还有其他作用，可以说标签就是GAS的灵魂
+```c#
+namespace GameAbilitySystem
+{
+    /// <summary>
+    /// 属性的数值，有属性标记+数值组成+修改器
+    /// </summary>
+    [Serializable]
+    public struct GameAttributeValue
+    {
+        [LabelText("目标属性")] public GameAttribute attribute;
+        [LabelText("基础值")] public float baseValue;
+        [LabelText("当前值")] public float currentValue;
 
-比如说技能冷却，即释放技能A时，必须不存在A的CD标签
+        [LabelText("修饰器")]
+        public GameAttributeModifier modifier;
+    }
+}
+```
+
+## GameAttributeModifier
+
+属性修饰器，当我们的属性增减时（因为有其他BUFF啊或者技能啥的），我们不会直接去修改属性，那可扩展性就太差了，我们会去修改属性的修饰器，最终数值=基础数值+修饰器修改
+
+```c#
+namespace GameAbilitySystem
+{
+    /// <summary>
+    /// 属性的修改器，有叠加，乘加，覆写
+    /// </summary>
+    [Serializable]
+    public struct GameAttributeModifier
+    {
+        [LabelText("叠加")]
+        public float add;
+
+        [LabelText("乘加")]
+        public float multiply;
+
+        [LabelText("覆写")]
+        public float overwrite;
+		
+        /// 这里是用于多个属性修饰器叠加
+        public GameAttributeModifier Combine(GameAttributeModifier other)
+        {
+            other.add += add;
+            other.multiply += multiply;
+            other.overwrite = overwrite;
+            return other;
+        }
+    }
+}
+```
+
+# EventHandler
+
+当属性发生改变前，会进行事件派发
+
+```c#
+namespace GameAbilitySystem
+{
+    /// <summary>
+    /// 属性事件处理器，会在属性改变前被调用，可以继承这个类实现自己的属性事件处理器
+    /// </summary>
+    public abstract class BaseAttributeEventHandler : ScriptableObject
+    {
+        public abstract void PreAttributeChange(AttributeSystemComponent attributeSystem, List<GameAttributeValue> prevAttributeValues, ref List<GameAttributeValue> currentAttributeValues);
+    }
+}
+```
+
+这是一个抽象类，所以具体的逻辑实现，需要你去继承实现
+
+举个例子，但属性值发生改变时，我们需要Log一下，那就可以实现这样一个属性改变事件器
+
+```c#
+namespace GameAbilitySystem
+{
+    [CreateAssetMenu(menuName = "GameAbilitySystem/Attribute EventHandler/Log Attribute Change")]
+    public class LogAttributeChangeEventHandler : BaseAttributeEventHandler
+    {
+        [SerializeField]
+        [LabelText("目标属性")]
+        private GameAttribute primaryAttribute;
+        
+        public override void PreAttributeChange(AttributeSystemComponent attributeSystem, List<GameAttributeValue> prevAttributeValues, ref List<GameAttributeValue> currentAttributeValues)
+        {
+            // 属性系统，下文细说，总之所有属性都会存放到属性系统中
+            var attributeCacheDict = attributeSystem.attributeCache;
+            // 这里就是找到了我们的目标属性
+            if (attributeCacheDict.TryGetValue(primaryAttribute, out var primaryAttributeIndex))
+            {
+                // 拿到上一帧的值与当前帧的值，对比，如果有差异，就Log出来
+                var prevValue = prevAttributeValues[primaryAttributeIndex].currentValue;
+                var currentValue = currentAttributeValues[primaryAttributeIndex].currentValue;
+
+                if (Math.Abs(prevValue - currentValue) > 0.0001f) 
+                {
+                    Debug.Log($"【{attributeSystem.gameObject.name}】 【{currentAttributeValues[primaryAttributeIndex].attribute.name}】 {prevValue} >>> {currentValue}");
+                }
+            }
+        }
+    }
+}
+```
+
+你可以发现，这个事件触发器，并不是针对某一个属性的，而是针对某一类行为的，比如上面这个，我们可以Log血量改变，也可以Log蓝量改变，这取决于我们的目标属性是什么
+
+![image-20231113165304453](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131653477.png)
+
+![image-20231113165314791](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131653818.png)
+
+这个事件触发器针对的就是生命值改变
+

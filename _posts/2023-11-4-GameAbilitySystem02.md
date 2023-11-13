@@ -1,5 +1,5 @@
 ---
-title: "GameAbilitySystem|01 GameAttribute 属性"
+title: "GameAbilitySystem|02 GameAttribute 属性"
 tags: 战斗
 ---
 
@@ -340,7 +340,7 @@ namespace GameAbilitySystem
 
 ![image-20231113172817783](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131728819.png)
 
-![image-20231113172825144](C:\Users\jiawei.liu\AppData\Roaming\Typora\typora-user-images\image-20231113172825144.png)
+![image-20231113172825144](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131728176.png)
 
 
 

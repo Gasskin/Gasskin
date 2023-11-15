@@ -177,4 +177,147 @@ namespace GameAbilitySystem
 
 ![image-20231114143437412](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311141434472.png)
 
+# GameEffectSpec
+
+GameEffect，简称GE
+
+GameEffectSpec，简称GES
+
+这两个的关系，不是很好解释，类似于Class和实例的区别，GE是一个配置项，而真正在运行时创建的GES，是基于某一个配置项的实例（后续中的GA与GAS也是一样的关系）
+
+好处就是，让GE彻底成为一个可配置项，非常灵活，非常自由，完全不需要关心运行时会发生什么
+
+先看一下GES有哪些字段
+
+```c#
+namespace GameAbilitySystem
+{
+    public class GameEffectSpec
+    {
+        // 这两个属性快照，是在规格器那一章提到过的，会在特定的时机对目标属性值进行快照
+        public GameAttributeValue sourceCapturedAttributeValue;
+        public GameAttributeValue targetCapturedAttributeValue;
+        
+        // AbilitySystemComponent，简称ACS，是技能核心组件，每个角色身上都会挂载，具体内容后面会说
+        // source就是释放者，target就是目标，很好理解
+        public AbilitySystemComponent source;
+        public AbilitySystemComponent target;
+        
+        // 这个GES对应的GE
+        public GameEffect gameEffect;
+
+        // 这里就是一些基础属性了，等级，剩余时间，总时间
+        public float level;
+        public float durationRemaining;
+        public float totalDuration;
+        public float timeUntilPeriodTick;
+    }
+}
+```
+
+构造函数，很简单，就是对几个属性进行初始化
+
+```c#
+namespace GameAbilitySystem
+{
+    public class GameEffectSpec
+    {
+        private GameEffectSpec(GameEffect gameEffect, AbilitySystemComponent source, float level)
+        {
+            // 保存3个基础属性
+            this.gameEffect = gameEffect;
+            this.source = source;
+            this.level = level;
+
+            // 初始化所有的GE修饰器
+            foreach (var modifier in this.gameEffect.modifiers)
+            {
+                modifier.modifierMagnitude.Initialise(this);
+            }
+
+            // 持续时间，也是一个规格器，当然这里是可能没有的（即时，或者永久类型）
+            var durationMagnitude = this.gameEffect.durationMagnitude;
+            if (durationMagnitude != null)
+            {
+                // 总时间和剩余时间一致
+                durationRemaining = durationMagnitude.CalculateMagnitude(this) * this.gameEffect.durationMultiplier;
+                totalDuration = durationRemaining;
+            }
+
+            // 这里是执行周期
+            timeUntilPeriodTick = this.gameEffect.period;
+            // 这里就是前面说的，是否立刻执行GE，还是等待一个周期
+            if (this.gameEffect.executeImmediate)
+                timeUntilPeriodTick = 0;
+        }
+    }
+}
+```
+
+然后是两个生命周期函数，用于Update的
+
+```c#
+namespace GameAbilitySystem
+{
+    public class GameEffectSpec
+    {
+        // 更新剩余时间，如果是永久GE，那么剩余时间一致会是1
+        public void UpdateRemainingDuration(float deltaTime)
+        {
+            if (gameEffect.durationPolicy == EDurationPolicy.Infinite)
+                durationRemaining = 1;
+            else
+                durationRemaining -= deltaTime;
+        }
+
+        // 更新周期，这里没有具体的业务逻辑，只是返回一个bool告诉你，是否要执行GE
+        public void TickPeriod(float deltaTime, out bool executePeriodicTick)
+        {
+            executePeriodicTick = false;
+            timeUntilPeriodTick -= deltaTime;
+            if (timeUntilPeriodTick <= 0)
+            {
+                timeUntilPeriodTick = gameEffect.period;
+                if (gameEffect.period > 0)
+                    executePeriodicTick = true;
+            }
+        }
+    }
+}
+```
+
+最后是一个创建GES的工具方法，没什么特殊用法，就是一个纯粹的工具方法
+
+PS：上面的构造方法是private的哦，所以只能通过这个工具方法创建GES
+
+```c#
+namespace GameAbilitySystem
+{
+    public class GameEffectSpec
+    {
+        public static GameEffectSpec CreateNew(GameEffect gameEffect, AbilitySystemComponent source, float Level = 1)
+        {
+            return new GameEffectSpec(gameEffect, source, Level);
+        }
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

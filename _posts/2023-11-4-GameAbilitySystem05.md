@@ -398,9 +398,9 @@ namespace GASExample
 - 应用消耗GES，冷却GES
 - 派发蓝图事件开始技能流程
 
+最后，提前放一个完整版的蓝图编辑流程在这里：
 
-
-
+![蓝图案例](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311151544743.png)
 
 
 

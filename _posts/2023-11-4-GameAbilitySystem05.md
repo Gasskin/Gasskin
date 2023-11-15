@@ -284,15 +284,119 @@ namespace GameAbilitySystem
 
 以普通攻击为例，我们实现一个最简单的能力
 
-# SimpleAbility
+## SimpleAbility
 
+GA其实是没什么东西的，就是返回一个对应的GAS就行
 
+```c#
+namespace GASExample
+{
+    [CreateAssetMenu(menuName = "GASExample/Ability/Simple Ability")]
+    public class SimpleAbility : GameAbility
+    {
+        public override GameAbilitySpec CreateSpec(AbilitySystemComponent owner,FlowScriptController blueprintController)
+        {
+            var spec = new SimpleAbilitySpec(this, owner, blueprintController);
+            return spec;
+        }
+    }
+}
+```
 
+## SimpleAbilitySpec
 
+主要来看一下这个GAS，这是个内部类
 
+先看一下属性和构造方法
 
+```c#
+namespace GASExample
+{
+    [CreateAssetMenu(menuName = "GASExample/Ability/Simple Ability")]
+    public class SimpleAbility : GameAbility
+    {
+        public class SimpleAbilitySpec : GameAbilitySpec
+        {
+            // 蓝图控制器（后文细说）
+            private readonly FlowScriptController blueprintController;
+            // 玩家控制器（后文细说）
+            private readonly PlayerController controller;
+            // 对应的GA
+            private readonly SimpleAbility simpleAbility;
 
+            // 构造方法就是属性初始化，没什么特殊逻辑
+            public SimpleAbilitySpec(GameAbility ability, AbilitySystemComponent owner, FlowScriptController blueprintController) : base(ability, owner)
+            {
+                simpleAbility = ability as SimpleAbility;
+                this.blueprintController = blueprintController;
+                controller = owner.GetComponent<PlayerController>();
+                level = owner.level;
+            }
+        }
+    }
+}
+```
 
+然后再看他的一些接口方法
+
+```c#
+namespace GASExample
+{
+    [CreateAssetMenu(menuName = "GASExample/Ability/Simple Ability")]
+    public class SimpleAbility : GameAbility
+    {
+        public class SimpleAbilitySpec : GameAbilitySpec
+        {
+            // 重写GAS的抽象方法
+            // HasAllTags和HasNoTags都是ACS的接口方法，用法和名字一样，就是判断玩家身上有某些标签，或者没有某些标签
+            // 这里就是最基础的标签检测，如果玩家要能够释放这个技能，那么必须满足的标签要求
+            protected override bool CheckGameTags()
+            {
+                return owner.HasAllTags(ability.ownerTags.requireTags)
+                       && owner.HasNoTags(ability.ownerTags.ignoreTags)
+                       && owner.HasAllTags(ability.sourceTags.requireTags)
+                       && owner.HasNoTags(ability.sourceTags.ignoreTags)
+                       && owner.HasAllTags(ability.targetTags.requireTags)
+                       && owner.HasNoTags(ability.targetTags.ignoreTags);
+            }
+
+            // 重写激活能力的接口
+            public override void ActivateAbility()
+            {
+                // 必须要先走base
+                base.ActivateAbility();
+                // 这里才是真正应用消耗和冷却GE的地方
+                if (simpleAbility.coolDown)
+                {
+                    var cdSpec = owner.MakeGameEffectSpec(simpleAbility.coolDown, level);
+                    owner.ApplyGameEffectSpecToSelf(cdSpec);
+                }
+
+                if (simpleAbility.cost)
+                {
+                    var costSpec = owner.MakeGameEffectSpec(simpleAbility.cost, level);
+                    owner.ApplyGameEffectSpecToSelf(costSpec);
+                }
+			   // 蓝图控制器派发事件（后文细说）
+                blueprintController.SendEvent("OnAbilityStart", (GameAbilitySpec)this, owner.GameObject());
+            }
+
+            public override void EndAbility()
+            {
+                if (!isActive)
+                    return;
+                base.EndAbility();
+            }
+        }
+    }
+}
+```
+
+这就是最基础的一个GAS了，其实也不复杂， 就多了两步：
+
+- 检查释放标签要求
+- 应用消耗GES，冷却GES
+- 派发蓝图事件开始技能流程
 
 
 

@@ -1,5 +1,5 @@
 ---
-title: "GameAbilitySystem|04 GameAbility 技能/能力"
+title: "GameAbilitySystem|05 GameAbility 技能/能力"
 tags: 战斗
 ---
 

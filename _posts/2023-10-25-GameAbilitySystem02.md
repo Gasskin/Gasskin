@@ -291,6 +291,41 @@ namespace GameAbilitySystem
 
 ![image-20231113171846075](https://raw.githubusercontent.com/Gasskin/CloudImg/master/img/202311131718118.png)
 
+一些重要的接口方法
+
+```c#
+namespace GameAbilitySystem
+{
+    public class AttributeSystemComponent : MonoBehaviour
+    {
+        // 更新某个属性的修饰器
+        public void UpdateAttributeModifier(GameAttribute attr, GameAttributeModifier modifier)
+        {
+            var cache = GetAttributeCache();
+            if (cache.TryGetValue(attr, out var index))
+            {
+                var attrValue = attributeValues[index];
+                attrValue.modifier = attrValue.modifier.Combine(modifier);
+                attributeValues[index] = attrValue;
+            }
+        }
+        
+        // 重置所有属性的修饰器
+        public void ResetAttributeModifiers()
+        {
+            for (var i = 0; i < attributeValues.Count; i++)
+            {
+                var attributeValue = attributeValues[i];
+                attributeValue.modifier = default;
+                attributeValues[i] = attributeValue;
+            }
+        }
+    }
+}
+```
+
+
+
 # 更复杂的属性
 
 回到最初的GameAttribute，你会发现，**CalculateCurrentAttributeValue**是一个虚方法，所以你是可以重写计算数值的逻辑的，这里可以高度自定义

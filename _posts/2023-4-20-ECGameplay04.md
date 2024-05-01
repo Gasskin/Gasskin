@@ -608,9 +608,9 @@ public class Monster : MonoBehaviour
 
 进行攻击
 
-<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月25日224014.mp4" controls=""></video>
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/videos/2023年4月25日224014.mp4" controls=""></video>
 
-<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/assets/videos/2023年4月27日224914.mp4" controls=""></video>
+<video style="width: 30%; height: auto; object-fit: contain;" src="https://www.logarius996.icu/videos/2023年4月27日224914.mp4" controls=""></video>
 
 # 技能
 

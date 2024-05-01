@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|07 引用池"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 引用池，和对象池的概念非常像，但是对象池服务于具体的GameObject对象，而引用池服务于普通的C#类。举个例子，如果打开UI的时候你想传递一些数据，最简单的方法就是

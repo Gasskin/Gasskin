@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|02 一切从管理器出发"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 ### 万事开头难！
 

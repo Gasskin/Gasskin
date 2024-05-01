@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|08 事件池"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 上一节我们写了一个简单的引用池，而单一的引用池是没有啥作用的，事件池就是引用池的作用之一

@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|13 数据节点"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 用于管理游戏运行时的各种数据信息，以一种树状结构储存

@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|04 UI管理器02"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 ### UI的注册

@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|09 Fsm有限状态机"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 状态机很好理解，它包含了很多的状态，最简单的例子就是Unity自带的Animator Controller，他本身就是一个状态机，里面有很多的动画状态，不同的状态代表不同的动画，然后我们给不同状态之间加上条件，描述状态的转移。

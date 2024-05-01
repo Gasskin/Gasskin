@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|12 对象池"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 首先新建如下脚本

@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|01 前言"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 ### 什么是框架？
 在所有事情开始之前，我想问一个问题：框架是什么？

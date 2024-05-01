@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|05 UI管理器03"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 ### 数据结构设计

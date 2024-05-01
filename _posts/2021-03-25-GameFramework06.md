@@ -1,6 +1,7 @@
 ---
 title: "GameFramework|06 UI管理器04"
-tags: 框架学习
+categories: GameFramework 
+tags: 框架
 ---
 
 ### 工具类

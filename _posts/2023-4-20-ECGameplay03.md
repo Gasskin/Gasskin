@@ -1,5 +1,6 @@
 ---
 title: "ECGameplay|03 行动机制"
+categories: ECGameplay
 tags: 战斗
 ---
 

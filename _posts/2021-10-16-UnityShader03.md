@@ -1,5 +1,6 @@
 ---
 title: "入门精要|03 基础光照"
+categories: UnityShader入门精要
 tags: 图形学
 ---
 

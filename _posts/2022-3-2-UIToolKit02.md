@@ -1,6 +1,7 @@
 ---
 title: "UIToolKit|02 控件"
-tags: UGUI
+categories: UIToolKit
+tags: Unity
 ---
 
 # 简单示例

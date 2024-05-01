@@ -1,6 +1,7 @@
 ---
 title: "Rigidbody记录"
-tags: 物理
+categories: 知识点
+tags: Unity
 ---
 
 # ForceMode

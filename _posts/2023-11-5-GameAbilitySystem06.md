@@ -1,5 +1,6 @@
 ---
 title: "GameAbilitySystem|06 AbilitySystemComponent"
+categories: GAS
 tags: 战斗
 ---
 

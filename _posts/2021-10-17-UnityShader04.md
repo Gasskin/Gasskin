@@ -1,5 +1,6 @@
 ---
 title: "入门精要|04 基础纹理"
+categories: UnityShader入门精要
 tags: 图形学
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "入门精要|05 透明效果"
+categories: UnityShader入门精要
 tags: 图形学
 ---
 

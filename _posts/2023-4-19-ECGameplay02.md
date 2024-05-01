@@ -1,5 +1,6 @@
 ---
 title: "ECGameplay|02 数值系统"
+categories: ECGameplay
 tags: 战斗
 ---
 

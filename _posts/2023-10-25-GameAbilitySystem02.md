@@ -1,5 +1,6 @@
 ---
 title: "GameAbilitySystem|02 GameAttribute 属性"
+categories: GAS
 tags: 战斗
 ---
 

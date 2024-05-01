@@ -1,5 +1,6 @@
 ---
 title: "GameAbilitySystem|03 Magnitude 规格"
+categories: GAS
 tags: 战斗
 ---
 

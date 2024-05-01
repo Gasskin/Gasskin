@@ -1,5 +1,6 @@
 ---
 title: "ECGameplay|01 组件式编程"
+categories: ECGameplay
 tags: 战斗
 ---
 

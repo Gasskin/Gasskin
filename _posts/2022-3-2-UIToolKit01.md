@@ -1,6 +1,7 @@
 ---
 title: "UIToolKit|01 初识"
-tags: UGUI
+categories: UIToolKit
+tags: Unity
 ---
 
 # 基础使用

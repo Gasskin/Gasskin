@@ -1,5 +1,6 @@
 ---
 title: "入门精要|06 更复杂的光照"
+categories: UnityShader入门精要
 tags: 图形学
 ---
 在此前的章节中，我们存在两个限制：

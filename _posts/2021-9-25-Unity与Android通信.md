@@ -1,6 +1,7 @@
 ---
 title: "Unity与Android通信"
-tags: SDK
+categories: SDK
+tags: Unity
 ---
 
 ### 前言

@@ -1,5 +1,6 @@
 ---
 title: "GameAbilitySystem|05 GameAbility 技能/能力"
+categories: GAS
 tags: 战斗
 ---
 

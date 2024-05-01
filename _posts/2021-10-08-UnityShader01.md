@@ -1,5 +1,6 @@
 ---
 title: "入门精要|01 图形学基础01"
+categories: UnityShader入门精要
 tags: 图形学
 ---
 
